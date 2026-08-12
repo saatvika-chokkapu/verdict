@@ -10,3 +10,6 @@ export const getThresholdSimulation = (threshold: number) =>
 
 export const getPipelineHealth = () =>
   axios.get(`${API_BASE}/api/pipeline/health`).then((res) => res.data);
+
+export const getSensitivityAnalysis = () =>
+  axios.get(`${API_BASE}/api/sensitivity-analysis`).then((res) => res.data);

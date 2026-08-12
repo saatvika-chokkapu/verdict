@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { getCostAnalysis } from "../api/client";
+import SkeletonCard from "./Skeleton";
 
 const card: React.CSSProperties = {
   background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
@@ -46,11 +47,11 @@ function CustomTooltip({ active, payload, label }: any) {
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "9px 12px", boxShadow: "0 6px 20px var(--shadow-color)", minWidth: 128 }}>
       <div style={{ font: "500 10px 'IBM Plex Mono',monospace", color: "var(--muted)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 7 }}>{label}</div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, marginBottom: 4 }}>
-        <span style={{ font: "400 11px 'IBM Plex Sans'", color: "var(--muted)" }}>RiskFlow</span>
+        <span style={{ font: "400 11px 'Inter'", color: "var(--muted)" }}>RiskFlow</span>
         <span style={{ font: "600 12px 'IBM Plex Mono',monospace", color: "var(--blue)" }}>${Math.round(rf?.value || 0).toLocaleString()}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
-        <span style={{ font: "400 11px 'IBM Plex Sans'", color: "var(--muted)" }}>Naive</span>
+        <span style={{ font: "400 11px 'Inter'", color: "var(--muted)" }}>Naive</span>
         <span style={{ font: "600 12px 'IBM Plex Mono',monospace", color: "var(--violet)" }}>${Math.round(naive?.value || 0).toLocaleString()}</span>
       </div>
     </div>
@@ -73,14 +74,14 @@ export default function CostAnalysis() {
   const animatedNaive = useCountUp(loading ? 0 : totalNaive);
   const animatedSavings = useCountUp(loading ? 0 : savings);
 
-  if (loading) return <div style={card}>Loading cost analysis...</div>;
+  if (loading) return <SkeletonCard title="Cost analysis" subtitle="RiskFlow's cost-aware decisioning vs. a naive fixed-threshold baseline." tiles={3} />;
 
   return (
     <section style={card}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h2 style={{ margin: 0, font: "600 19px 'IBM Plex Sans'", letterSpacing: "-.01em" }}>Cost analysis</h2>
-          <p style={{ margin: "7px 0 0", font: "400 13px 'IBM Plex Sans'", color: "var(--muted)", maxWidth: 520 }}>RiskFlow's cost-aware decisioning vs. a naive fixed-threshold baseline.</p>
+          <h2 style={{ margin: 0, font: "600 19px 'Inter'", letterSpacing: "-.01em" }}>Cost analysis</h2>
+          <p style={{ margin: "7px 0 0", font: "400 13px 'Inter'", color: "var(--muted)", maxWidth: 520 }}>RiskFlow's cost-aware decisioning vs. a naive fixed-threshold baseline.</p>
         </div>
         <span style={{ font: "500 11px 'IBM Plex Mono',monospace", color: "var(--muted)", letterSpacing: ".08em", textTransform: "uppercase", border: "1px solid var(--border)", borderRadius: 999, padding: "6px 12px", whiteSpace: "nowrap" }}>{data.length} days</span>
       </div>
@@ -89,12 +90,12 @@ export default function CostAnalysis() {
         <div className="tile-hover" style={tile}>
           <div style={tileLabel}><span style={dot("var(--blue)")} /><span style={labelText}>RiskFlow cost</span></div>
           <div style={bigNumber("var(--blue)")}>{fmt(animatedRiskflow)}</div>
-          <div style={{ marginTop: 9, font: "400 12px 'IBM Plex Sans'", color: "var(--muted)" }}>cost-aware decisioning</div>
+          <div style={{ marginTop: 9, font: "400 12px 'Inter'", color: "var(--muted)" }}>cost-aware decisioning</div>
         </div>
         <div className="tile-hover" style={tile}>
           <div style={tileLabel}><span style={dot("var(--violet)")} /><span style={labelText}>Naive cost</span></div>
           <div style={bigNumber("var(--violet)")}>{fmt(animatedNaive)}</div>
-          <div style={{ marginTop: 9, font: "400 12px 'IBM Plex Sans'", color: "var(--muted)" }}>fixed 0.50 threshold</div>
+          <div style={{ marginTop: 9, font: "400 12px 'Inter'", color: "var(--muted)" }}>fixed 0.50 threshold</div>
         </div>
         <div className="tile-hover" style={tile}>
           <div style={tileLabel}><span style={dot("var(--teal)")} /><span style={labelText}>Savings</span></div>
@@ -123,8 +124,8 @@ export default function CostAnalysis() {
       </ResponsiveContainer>
 
       <div style={{ display: "flex", gap: 22, marginTop: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 15, height: 3, borderRadius: 2, background: "var(--blue)" }} /><span style={{ font: "400 12px 'IBM Plex Sans'", color: "var(--muted)" }}>RiskFlow — cost-aware</span></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 15, height: 3, borderRadius: 2, background: "var(--violet)" }} /><span style={{ font: "400 12px 'IBM Plex Sans'", color: "var(--muted)" }}>Naive — fixed threshold</span></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 15, height: 3, borderRadius: 2, background: "var(--blue)" }} /><span style={{ font: "400 12px 'Inter'", color: "var(--muted)" }}>RiskFlow — cost-aware</span></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 15, height: 3, borderRadius: 2, background: "var(--violet)" }} /><span style={{ font: "400 12px 'Inter'", color: "var(--muted)" }}>Naive — fixed threshold</span></div>
       </div>
     </section>
   );

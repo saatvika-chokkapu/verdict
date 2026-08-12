@@ -3,7 +3,7 @@ import { getThresholdSimulation } from "../api/client";
 
 const card: React.CSSProperties = {
   background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
-  padding: "var(--card-pad)", boxShadow: "var(--shadow)", marginBottom: "18px",
+  padding: "var(--card-pad)", boxShadow: "var(--shadow)", animation: "cardIn .5s ease-out both", animationDelay: "200ms", marginBottom: "18px",
 };
 const tile: React.CSSProperties = {
   background: "var(--tile)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
@@ -27,8 +27,8 @@ export default function ThresholdSimulator() {
 
   return (
     <section style={card}>
-      <h2 style={{ margin: 0, font: "600 19px 'IBM Plex Sans'", letterSpacing: "-.01em" }}>Threshold simulator</h2>
-      <p style={{ margin: "7px 0 0", font: "400 13px 'IBM Plex Sans'", color: "var(--muted)", maxWidth: 520 }}>
+      <h2 style={{ margin: 0, font: "600 19px 'Inter'", letterSpacing: "-.01em" }}>Threshold simulator</h2>
+      <p style={{ margin: "7px 0 0", font: "400 13px 'Inter'", color: "var(--muted)", maxWidth: 520 }}>
         Drag to see how the decision threshold trades fraud capture against false declines.
       </p>
 
@@ -54,25 +54,25 @@ export default function ThresholdSimulator() {
 
       {result && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--gap)" }}>
-          <div style={tile}>
+          <div className="tile-hover" style={tile}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><span style={dot("var(--blue)")} /><span style={labelText}>Fraud caught</span></div>
             <div style={{ font: "500 28px/1 'IBM Plex Mono',monospace", color: "var(--blue)", fontVariantNumeric: "tabular-nums" }}>{result.fraud_caught_count.toLocaleString()}</div>
-            <div style={{ marginTop: 8, font: "400 12px 'IBM Plex Sans'", color: "var(--muted)" }}>transactions blocked</div>
+            <div style={{ marginTop: 8, font: "400 12px 'Inter'", color: "var(--muted)" }}>transactions blocked</div>
           </div>
-          <div style={tile}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><span style={dot("var(--muted)")} /><span style={labelText}>False declines</span></div>
-            <div style={{ font: "500 28px/1 'IBM Plex Mono',monospace", color: "var(--text)", fontVariantNumeric: "tabular-nums" }}>{result.false_declines.toLocaleString()}</div>
-            <div style={{ marginTop: 8, font: "400 12px 'IBM Plex Sans'", color: "var(--muted)" }}>good customers blocked</div>
+          <div className="tile-hover" style={tile}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><span style={dot("var(--amber)")} /><span style={labelText}>False declines</span></div>
+            <div style={{ font: "500 28px/1 'IBM Plex Mono',monospace", color: "var(--amber)", fontVariantNumeric: "tabular-nums" }}>{result.false_declines.toLocaleString()}</div>
+            <div style={{ marginTop: 8, font: "400 12px 'Inter'", color: "var(--muted)" }}>good customers blocked</div>
           </div>
-          <div style={tile}>
+          <div className="tile-hover" style={tile}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><span style={dot("var(--teal)")} /><span style={labelText}>Fraud caught value</span></div>
             <div style={{ font: "600 28px/1 'IBM Plex Mono',monospace", color: "var(--teal)", fontVariantNumeric: "tabular-nums" }}>{fmt(result.fraud_caught_value)}</div>
-            <div style={{ marginTop: 8, font: "400 12px 'IBM Plex Sans'", color: "var(--muted)" }}>loss prevented</div>
+            <div style={{ marginTop: 8, font: "400 12px 'Inter'", color: "var(--muted)" }}>loss prevented</div>
           </div>
-          <div style={tile}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><span style={dot("var(--violet)")} /><span style={labelText}>Fraud missed value</span></div>
-            <div style={{ font: "600 28px/1 'IBM Plex Mono',monospace", color: "var(--violet)", fontVariantNumeric: "tabular-nums" }}>{fmt(result.fraud_missed_value)}</div>
-            <div style={{ marginTop: 8, font: "400 12px 'IBM Plex Sans'", color: "var(--muted)" }}>loss not prevented</div>
+          <div className="tile-hover" style={tile}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><span style={dot("var(--red)")} /><span style={labelText}>Fraud missed value</span></div>
+            <div style={{ font: "600 28px/1 'IBM Plex Mono',monospace", color: "var(--red)", fontVariantNumeric: "tabular-nums" }}>{fmt(result.fraud_missed_value)}</div>
+            <div style={{ marginTop: 8, font: "400 12px 'Inter'", color: "var(--muted)" }}>loss not prevented</div>
           </div>
         </div>
       )}

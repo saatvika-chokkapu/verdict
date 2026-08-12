@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
 :root {
   --page: oklch(0.94 0.019 155);
@@ -11,8 +11,10 @@
   --blue: oklch(0.54 0.15 150);
   --violet: oklch(0.52 0.078 192);
   --teal: oklch(0.57 0.135 132);
+  --amber: oklch(0.63 0.16 70);
+  --red: oklch(0.58 0.19 25);
   --shadow-color: rgba(30,45,30,.09);
-  --radius: 16px;
+  --radius: 14px;
   --card-pad: 30px;
   --tile-pad: 22px;
   --gap: 18px;
@@ -20,17 +22,19 @@
 }
 
 [data-theme="dark"] {
-  --page: oklch(0.172 0.022 158);
-  --card: oklch(0.216 0.026 158);
-  --tile: oklch(0.258 0.03 158);
-  --border: oklch(0.325 0.028 158);
-  --text: oklch(0.965 0.012 150);
-  --muted: oklch(0.67 0.025 158);
-  --grid: oklch(0.40 0.028 158);
-  --blue: oklch(0.79 0.17 150);
-  --violet: oklch(0.63 0.09 192);
-  --teal: oklch(0.85 0.155 132);
-  --shadow-color: rgba(0,15,8,.5);
+  --page: oklch(0.14 0.004 260);
+  --card: oklch(0.175 0.006 260);
+  --tile: oklch(0.205 0.007 260);
+  --border: oklch(0.28 0.008 260);
+  --text: oklch(0.96 0.003 260);
+  --muted: oklch(0.60 0.01 260);
+  --grid: oklch(0.30 0.008 260);
+  --blue: oklch(0.80 0.16 150);
+  --violet: oklch(0.66 0.10 230);
+  --teal: oklch(0.82 0.14 132);
+  --amber: oklch(0.78 0.15 75);
+  --red: oklch(0.68 0.19 25);
+  --shadow-color: rgba(0,0,0,.55);
 }
 
 * { box-sizing: border-box; }
@@ -46,12 +50,47 @@ body { margin: 0; }
 .rf-range::-webkit-slider-thumb:hover { transform:scale(1.15); }
 .rf-range::-moz-range-thumb { width:20px; height:20px; border-radius:50%; background:var(--blue); border:3px solid var(--card); box-shadow:0 0 0 1px var(--blue); cursor:pointer; }
 
-@keyframes mascotBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
-@keyframes mascotBlink { 0%,92%,100%{transform:scaleY(1)} 96%{transform:scaleY(.12)} }
-@keyframes leafSway { 0%,100%{transform:rotate(-10deg)} 50%{transform:rotate(13deg)} }
+@keyframes signalBar { 0%,100%{opacity:.55; transform:scaleY(.75)} 50%{opacity:1; transform:scaleY(1)} }
 @keyframes pulseDot { 0%{box-shadow:0 0 0 0 color-mix(in oklab,var(--teal) 55%,transparent)} 70%{box-shadow:0 0 0 7px transparent} 100%{box-shadow:0 0 0 0 transparent} }
 @keyframes cardIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
 @keyframes tileIn { from { opacity:0; transform:scale(.97); } to { opacity:1; transform:scale(1); } }
 
 .tile-hover { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; animation: tileIn .4s ease-out both; }
 .tile-hover:hover { transform: translateY(-3px); box-shadow: 0 10px 24px var(--shadow-color); border-color: color-mix(in oklab, var(--blue) 35%, var(--border)); }
+
+/* Skeleton loading state */
+.skel-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--card-pad); box-shadow: var(--shadow); margin-bottom: 18px; }
+.skel-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.skel-line { border-radius: 6px; background: linear-gradient(90deg, var(--tile) 25%, var(--border) 50%, var(--tile) 75%); background-size: 200% 100%; animation: shimmer 1.6s ease-in-out infinite; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.side-bubble {
+  display: none;
+  position: absolute;
+  width: 200px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  font: 400 12.5px 'IBM Plex Sans', sans-serif;
+  color: var(--text);
+  line-height: 1.5;
+  box-shadow: var(--shadow);
+  animation: bubbleIn .5s ease-out both;
+}
+.side-bubble::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  width: 0;
+  height: 0;
+  border: 7px solid transparent;
+}
+.bubble-left::before { right: -14px; border-left-color: var(--card); }
+.bubble-right::before { left: -14px; border-right-color: var(--card); }
+
+@media (min-width: 1480px) {
+  .side-bubble { display: block; }
+}
+
+@keyframes bubbleIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }

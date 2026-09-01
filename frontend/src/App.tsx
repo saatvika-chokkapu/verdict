@@ -32,7 +32,7 @@ function App() {
                 <span style={{ width: 5, height: 18, borderRadius: 1.5, background: "var(--blue)", animation: "signalBar 1.8s ease-in-out infinite .2s" }} />
                 <span style={{ width: 5, height: 26, borderRadius: 1.5, background: "var(--amber)", animation: "signalBar 1.8s ease-in-out infinite .4s" }} />
               </span>
-              <h1 style={{ margin: 0, font: "700 26px 'Inter'", letterSpacing: "-.02em", color: "var(--text)" }}>RiskFlow</h1>
+              <h1 style={{ margin: 0, font: "700 26px 'Inter'", letterSpacing: "-.02em", color: "var(--text)" }}>Verdict</h1>
             </div>
             <p style={{ margin: "10px 0 0", font: "400 14px 'Inter'", color: "var(--muted)" }}>
               Real-time payment risk and cost-optimized decisioning
@@ -63,7 +63,7 @@ function App() {
         <PipelineHealth />
 
         <p style={{ margin: "22px 2px 0", font: "400 11px 'IBM Plex Mono',monospace", color: "var(--muted)" }}>
-          Live values streamed from a Snowflake warehouse via the RiskFlow API.
+          Live values streamed from a Snowflake warehouse via the Verdict API.
         </p>
       </div>
     </div>

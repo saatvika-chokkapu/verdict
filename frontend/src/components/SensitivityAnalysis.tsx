@@ -61,7 +61,7 @@ export default function SensitivityAnalysis() {
       <div className="tile-hover" style={{ marginTop: 16, padding: "12px 16px", background: "var(--tile)", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}>
         <span style={labelText}>Honest read</span>
         <p style={{ margin: "8px 0 0", font: "400 13px 'Inter'", color: "var(--text)" }}>
-          RiskFlow beats the naive baseline as long as the real cost of losing a customer isn't more than
+          Verdict beats the naive baseline as long as the real cost of losing a customer isn't more than
           about <strong style={{ color: "var(--violet)" }}>{breakeven ? `${breakeven.toFixed(2)}x` : "—"}</strong> our documented estimate. Past that point, the naive approach would actually perform better.
         </p>
       </div>

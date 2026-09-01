@@ -1,14 +1,14 @@
-# RiskFlow
+# Verdict
 
 **Real-time payment risk and cost-optimized transaction decisioning.**
 
 Live demo: https://riskflow-five.vercel.app
 
-RiskFlow scores incoming transactions for fraud risk with a LightGBM model, then makes an approve/decline decision based on *expected cost* — not a fixed probability threshold. Declining a legitimate transaction has a real cost (customer churn); approving a fraudulent one has a real cost (the transaction amount). RiskFlow compares both and picks the cheaper outcome, in real time.
+Verdict scores incoming transactions for fraud risk with a LightGBM model, then makes an approve/decline decision based on *expected cost* — not a fixed probability threshold. Declining a legitimate transaction has a real cost (customer churn); approving a fraudulent one has a real cost (the transaction amount). Verdict compares both and picks the cheaper outcome, in real time.
 
 ## Why cost-based decisioning, not just a fraud score
 
-A model that outputs "87% fraud probability" doesn't tell you what to actually do. Naively declining everything above 0.5 ignores that a $12 transaction and a $1,200 transaction carry very different risk, and that falsely declining a legitimate customer has a real, measurable cost (estimated churn × customer lifetime value). RiskFlow's `cost_model.py` computes the expected cost of approving vs. declining each transaction and decides based on that comparison. The assumptions that aren't derivable from the dataset itself (churn rate, lifetime value by segment) are explicitly documented and separated from what *is* real, in [`docs/cost_model_assumptions.md`](docs/cost_model_assumptions.md) — and exposed as a tunable `cost_multiplier` so the sensitivity of the decision to those assumptions can be stress-tested directly, rather than baked in silently.
+A model that outputs "87% fraud probability" doesn't tell you what to actually do. Naively declining everything above 0.5 ignores that a $12 transaction and a $1,200 transaction carry very different risk, and that falsely declining a legitimate customer has a real, measurable cost (estimated churn × customer lifetime value). Verdict's `cost_model.py` computes the expected cost of approving vs. declining each transaction and decides based on that comparison. The assumptions that aren't derivable from the dataset itself (churn rate, lifetime value by segment) are explicitly documented and separated from what *is* real, in [`docs/cost_model_assumptions.md`](docs/cost_model_assumptions.md) — and exposed as a tunable `cost_multiplier` so the sensitivity of the decision to those assumptions can be stress-tested directly, rather than baked in silently.
 
 ## Architecture
 Kafka (streaming ingestion)

@@ -4,7 +4,6 @@ import numpy as np
 import json
 import os
 from datetime import datetime, timezone
-from pyiceberg.catalog import load_catalog
 
 BUCKET_NAME = "riskflow-lakehouse-7d75d72b"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -39,6 +38,7 @@ def compute_drift_report():
     This is the function main.py's /api/pipeline/health imports and calls on a
     cadence -- it is NOT called on every request, since it scans the full
     lakehouse table, which is too slow to run per-API-call."""
+    from pyiceberg.catalog import load_catalog  # lazy: only the lakehouse scan needs it
     catalog = load_catalog("riskflow", **{"type": "glue", "warehouse": f"s3://{BUCKET_NAME}/"})
     table = catalog.load_table("riskflow_lakehouse.raw_transactions")
     df = table.scan().to_pandas()

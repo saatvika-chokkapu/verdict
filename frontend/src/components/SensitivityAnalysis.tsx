@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts";
 import { getSensitivityAnalysis } from "../api/client";
-import SkeletonCard from "./Skeleton";
+import SkeletonCard, { ErrorCard } from "./Skeleton";
 
 const card: React.CSSProperties = {
   background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
@@ -24,9 +24,17 @@ function findBreakeven(data: any[]): number | null {
 export default function SensitivityAnalysis() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => { getSensitivityAnalysis().then((d) => { setData(d); setLoading(false); }); }, []);
+  const load = () => {
+    setLoading(true); setFailed(false);
+    getSensitivityAnalysis()
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => { setFailed(true); setLoading(false); });
+  };
+  useEffect(load, []);
 
+  if (failed) return <ErrorCard title="How sensitive is this result to our assumptions?" onRetry={load} />;
   if (loading) return <SkeletonCard title="How sensitive is this result to our assumptions?" subtitle="Stress-testing the savings figure against the documented cost assumptions." tiles={1} delay="100ms" />;
 
   const breakeven = findBreakeven(data);

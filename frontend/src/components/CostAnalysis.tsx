@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { getCostAnalysis } from "../api/client";
-import SkeletonCard from "./Skeleton";
+import SkeletonCard, { ErrorCard } from "./Skeleton";
 
 const card: React.CSSProperties = {
   background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
@@ -61,8 +61,15 @@ function CustomTooltip({ active, payload, label }: any) {
 export default function CostAnalysis() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => { getCostAnalysis().then((d) => { setData(d); setLoading(false); }); }, []);
+  const load = () => {
+    setLoading(true); setFailed(false);
+    getCostAnalysis()
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => { setFailed(true); setLoading(false); });
+  };
+  useEffect(load, []);
 
   const totalRiskflow = data.reduce((s, d) => s + d.riskflow_total_cost, 0);
   const totalNaive = data.reduce((s, d) => s + d.naive_total_cost, 0);
@@ -74,6 +81,7 @@ export default function CostAnalysis() {
   const animatedNaive = useCountUp(loading ? 0 : totalNaive);
   const animatedSavings = useCountUp(loading ? 0 : savings);
 
+  if (failed) return <ErrorCard title="Cost analysis" onRetry={load} />;
   if (loading) return <SkeletonCard title="Cost analysis" subtitle="Verdict's cost-aware decisioning vs. a naive fixed-threshold baseline." tiles={3} />;
 
   return (

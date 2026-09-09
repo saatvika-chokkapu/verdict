@@ -19,7 +19,11 @@ export default function ThresholdSimulator() {
   const [result, setResult] = useState<any>(null);
 
   useEffect(() => {
-    getThresholdSimulation(threshold).then(setResult);
+    let stale = false;
+    getThresholdSimulation(threshold)
+      .then((r) => { if (!stale) setResult(r); })
+      .catch(() => {});
+    return () => { stale = true; };
   }, [threshold]);
 
   const fmt = (n: number) => `$${Math.round(n).toLocaleString()}`;

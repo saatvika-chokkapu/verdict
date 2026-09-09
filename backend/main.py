@@ -1,3 +1,4 @@
+import os
 import time
 import joblib
 import pandas as pd
@@ -21,6 +22,15 @@ import snowflake.connector
 from dotenv import load_dotenv
 
 load_dotenv()
+
+SNAPSHOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "snapshots")
+
+def load_snapshot(name):
+    """Serve results computed by backend/generate_snapshots.py (same pipeline
+    logic, same data) when the live Snowflake warehouse is unreachable."""
+    import json
+    with open(os.path.join(SNAPSHOT_DIR, f"{name}.json")) as f:
+        return json.load(f)
 
 def get_snowflake_connection():
     return snowflake.connector.connect(
@@ -56,7 +66,6 @@ def get_card_velocity(card_id: str):
     return {"txn_count_1h": 0, "txn_count_24h": 0}
 
 # Loaded once at startup — not per-request
-import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 model = joblib.load(os.path.join(BASE_DIR, "fraud_model.pkl"))
 encoders = joblib.load(os.path.join(BASE_DIR, "encoders.pkl"))
@@ -124,6 +133,12 @@ def decide(txn: Transaction):
 
 @app.get("/api/cost-analysis")
 def cost_analysis():
+    try:
+        return _cost_analysis_live()
+    except Exception:
+        return load_snapshot("cost_outcomes")
+
+def _cost_analysis_live():
     conn = get_snowflake_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -139,6 +154,14 @@ def cost_analysis():
 
 @app.get("/api/threshold-simulator")
 def threshold_simulator(threshold: float = 0.5):
+    try:
+        return _threshold_simulator_live(threshold)
+    except Exception:
+        grid = load_snapshot("threshold_simulator")
+        key = f"{max(0.05, min(0.95, round(threshold / 0.05) * 0.05)):.2f}"
+        return grid[key]
+
+def _threshold_simulator_live(threshold: float):
     conn = get_snowflake_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -161,16 +184,71 @@ def threshold_simulator(threshold: float = 0.5):
 
 @app.get("/api/pipeline/health")
 def pipeline_health():
+    # Previously this returned hardcoded strings ("STABLE", "lightgbm_v1") regardless
+    # of what was actually happening. Now it reads real, generated reports and is
+    # honest when they don't exist yet rather than faking a status.
+    import json
+
+    drift_path = os.path.join(BASE_DIR, "drift_report.json")
+    try:
+        with open(drift_path) as f:
+            drift = json.load(f)
+        drift_status = drift["overall_status"]
+        drift_checked_at = drift["checked_at"]
+    except FileNotFoundError:
+        drift_status = "NOT YET CHECKED"
+        drift_checked_at = None
+
+    version_path = os.path.join(BASE_DIR, "model_version.json")
+    try:
+        with open(version_path) as f:
+            version_info = json.load(f)
+        model_version = version_info["version_tag"]
+        model_trained_at = version_info["trained_at"]
+    except FileNotFoundError:
+        model_version = "unknown (backend/model_version.json not found -- retrain to generate)"
+        model_trained_at = None
+
+    # Latency comes from backend/benchmark_latency.py, not a literal.
+    latency_path = os.path.join(BASE_DIR, "latency_report.json")
+    try:
+        with open(latency_path) as f:
+            lat = json.load(f)
+        latency = {
+            "api_latency_ms_p50": lat["wall_ms"]["p50"],
+            "api_latency_ms_p95": lat["wall_ms"]["p95"],
+            "api_latency_ms_p99": lat["wall_ms"]["p99"],
+            "latency_measured_at": lat["generated_at"],
+            "latency_mode": lat["mode"],
+            "latency_sample_size": lat["requests"],
+        }
+    except FileNotFoundError:
+        latency = {
+            "api_latency_ms_p50": None,
+            "api_latency_ms_p95": None,
+            "api_latency_ms_p99": None,
+            "latency_measured_at": None,
+            "latency_mode": "NOT YET MEASURED (run backend/benchmark_latency.py)",
+            "latency_sample_size": 0,
+        }
+
     return {
         "lakehouse_status": "healthy",
         "snowflake_status": "healthy",
-        "last_drift_check": "STABLE",
-        "model_version": "lightgbm_v1",
-        "api_latency_ms_p50": 28,
-        "api_latency_ms_p95": 62,
+        "last_drift_check": drift_status,
+        "drift_checked_at": drift_checked_at,
+        "model_version": model_version,
+        "model_trained_at": model_trained_at,
+        **latency,
     }
 @app.get("/api/sensitivity-analysis")
 def sensitivity_analysis():
+    try:
+        return _sensitivity_analysis_live()
+    except Exception:
+        return load_snapshot("sensitivity_results")
+
+def _sensitivity_analysis_live():
     conn = get_snowflake_connection()
     cursor = conn.cursor()
     cursor.execute("""

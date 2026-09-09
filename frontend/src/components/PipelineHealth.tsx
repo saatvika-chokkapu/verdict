@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getPipelineHealth } from "../api/client";
-import SkeletonCard from "./Skeleton";
+import SkeletonCard, { ErrorCard } from "./Skeleton";
 
 const card: React.CSSProperties = {
   background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
@@ -36,11 +36,15 @@ function StatusPill({ value }: { value: string }) {
 
 export default function PipelineHealth() {
   const [health, setHealth] = useState<any>(null);
+  const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    getPipelineHealth().then(setHealth);
-  }, []);
+  const load = () => {
+    setFailed(false);
+    getPipelineHealth().then(setHealth).catch(() => setFailed(true));
+  };
+  useEffect(load, []);
 
+  if (failed) return <ErrorCard title="Pipeline health" onRetry={load} />;
   if (!health) return <SkeletonCard title="Pipeline health" tiles={3} delay="300ms" />;
 
   return (
@@ -63,16 +67,16 @@ export default function PipelineHealth() {
           <div style={labelText}>Model version</div>
           <div style={{ font: "500 20px 'IBM Plex Mono',monospace", color: "var(--text)" }}>{health.model_version}</div>
         </div>
-        <div className="tile-hover" style={tile}>
+        <div className="tile-hover" style={tile} title={health.latency_measured_at ? `Measured ${health.latency_mode}, n=${health.latency_sample_size}, ${health.latency_measured_at}` : "Run backend/benchmark_latency.py"}>
           <div style={labelText}>Latency p50</div>
           <div style={{ font: "500 20px 'IBM Plex Mono',monospace", color: "var(--text)" }}>
-            {health.api_latency_ms_p50}<span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 1 }}>ms</span>
+            {health.api_latency_ms_p50 ?? "—"}<span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 1 }}>ms</span>
           </div>
         </div>
-        <div className="tile-hover" style={tile}>
+        <div className="tile-hover" style={tile} title={health.latency_measured_at ? `Measured ${health.latency_mode}, n=${health.latency_sample_size}` : "Run backend/benchmark_latency.py"}>
           <div style={labelText}>Latency p95</div>
           <div style={{ font: "500 20px 'IBM Plex Mono',monospace", color: "var(--text)" }}>
-            {health.api_latency_ms_p95}<span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 1 }}>ms</span>
+            {health.api_latency_ms_p95 ?? "—"}<span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 1 }}>ms</span>
           </div>
         </div>
       </div>

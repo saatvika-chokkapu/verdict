@@ -43,3 +43,28 @@ export default function SkeletonCard({ title, subtitle, tiles = 3, delay }: Skel
     </section>
   );
 }
+
+
+type ErrorCardProps = { title: string; onRetry: () => void };
+
+export function ErrorCard({ title, onRetry }: ErrorCardProps) {
+  return (
+    <section className="skel-card" style={{ animation: "cardIn .5s ease-out both" }}>
+      <h2 style={{ margin: 0, font: "600 19px 'Inter'", letterSpacing: "-.01em", color: "var(--text)" }}>{title}</h2>
+      <p style={{ margin: "12px 0 16px", font: "400 13px 'Inter'", color: "var(--muted)", maxWidth: 460 }}>
+        The live API did not respond. It runs on a free tier that sleeps when idle,
+        so the first request after a quiet period can take up to a minute.
+      </p>
+      <button
+        onClick={onRetry}
+        style={{
+          font: "500 12px 'IBM Plex Mono',monospace", letterSpacing: ".06em", textTransform: "uppercase",
+          color: "var(--text)", background: "var(--tile)", border: "1px solid var(--border)",
+          borderRadius: 8, padding: "9px 16px", cursor: "pointer",
+        }}
+      >
+        Retry
+      </button>
+    </section>
+  );
+}

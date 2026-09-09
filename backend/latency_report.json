@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-09-09T05:38:46.231700+00:00",
+  "mode": "in-process",
+  "target": "TestClient(backend.main.app)",
+  "requests": 2000,
+  "warmup": 50,
+  "seed": 42,
+  "python": "3.10.12",
+  "wall_ms": {
+    "p50": 1.45,
+    "p95": 1.61,
+    "p99": 1.72,
+    "mean": 1.46,
+    "max": 2.74
+  },
+  "server_ms": {
+    "p50": 0.56,
+    "p95": 0.66,
+    "p99": 0.71
+  },
+  "throughput_rps_sequential": 677.6,
+  "decision_mix": {
+    "approve": 1984,
+    "decline": 16,
+    "review": 0
+  }
+}

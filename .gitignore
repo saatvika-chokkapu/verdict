@@ -30,3 +30,4 @@ node_modules/
 *.pkl
 !backend/fraud_model.pkl
 !backend/encoders.pkl
+!backend/sample_data/*.csv

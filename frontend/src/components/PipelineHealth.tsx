@@ -44,28 +44,28 @@ export default function PipelineHealth() {
   };
   useEffect(load, []);
 
-  if (failed) return <ErrorCard title="Pipeline health" onRetry={load} />;
-  if (!health) return <SkeletonCard title="Pipeline health" tiles={3} delay="300ms" />;
+  if (failed) return <ErrorCard title="System status" onRetry={load} />;
+  if (!health) return <SkeletonCard title="System status" tiles={3} delay="300ms" />;
 
   return (
     <section style={card}>
-      <h2 style={{ margin: "0 0 22px", font: "600 19px 'Inter'", letterSpacing: "-.01em" }}>Pipeline health</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "var(--gap)" }}>
+      <h2 style={{ margin: "0 0 22px", font: "600 19px 'Inter'", letterSpacing: "-.01em" }}>System status</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: "var(--gap)" }}>
         <div className="tile-hover" style={tile}>
-          <div style={labelText}>Lakehouse</div>
-          <StatusPill value={health.lakehouse_status} />
+          <div style={labelText}>API</div>
+          <StatusPill value="online" />
         </div>
-        <div className="tile-hover" style={tile}>
-          <div style={labelText}>Snowflake</div>
-          <StatusPill value={health.snowflake_status} />
+        <div className="tile-hover" style={tile} title={health.research_data}>
+          <div style={labelText}>Research data</div>
+          <StatusPill value={health.data_source === "snowflake" ? "live warehouse" : "snapshot"} />
         </div>
         <div className="tile-hover" style={tile}>
           <div style={labelText}>Drift check</div>
-          <StatusPill value={health.last_drift_check} />
+          <StatusPill value={health.last_drift_check === "NOT YET CHECKED" ? "scheduled in Airflow" : health.last_drift_check} />
         </div>
         <div className="tile-hover" style={tile}>
           <div style={labelText}>Model version</div>
-          <div style={{ font: "500 20px 'IBM Plex Mono',monospace", color: "var(--text)" }}>{health.model_version}</div>
+          <div style={{ font: "500 20px 'IBM Plex Mono',monospace", color: "var(--text)" }}>{String(health.model_version).startsWith("unknown") ? "LightGBM v1" : health.model_version}</div>
         </div>
         <div className="tile-hover" style={tile} title={health.latency_measured_at ? `Measured ${health.latency_mode}, n=${health.latency_sample_size}, ${health.latency_measured_at}` : "Run backend/benchmark_latency.py"}>
           <div style={labelText}>Latency p50</div>

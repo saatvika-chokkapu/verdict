@@ -2,7 +2,8 @@ import os
 import time
 import joblib
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from backend.cost_model import assign_segment, decide_transaction, VELOCITY_REVIEW_THRESHOLD
 
@@ -12,7 +13,7 @@ app = FastAPI(title="RiskFlow Decisioning API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:4173"],
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
@@ -24,6 +25,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SNAPSHOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "snapshots")
+SAMPLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_data")
+
+# "snapshot" (default) serves the precomputed research results straight from disk.
+# "snowflake" queries the live warehouse first and falls back to the snapshot on error.
+# The default skips Snowflake entirely, so a suspended warehouse never slows a request.
+DATA_SOURCE = os.getenv("DATA_SOURCE", "snapshot").lower()
 
 def load_snapshot(name):
     """Serve results computed by backend/generate_snapshots.py (same pipeline
@@ -133,6 +140,8 @@ def decide(txn: Transaction):
 
 @app.get("/api/cost-analysis")
 def cost_analysis():
+    if DATA_SOURCE != "snowflake":
+        return load_snapshot("cost_outcomes")
     try:
         return _cost_analysis_live()
     except Exception:
@@ -154,12 +163,16 @@ def _cost_analysis_live():
 
 @app.get("/api/threshold-simulator")
 def threshold_simulator(threshold: float = 0.5):
-    try:
-        return _threshold_simulator_live(threshold)
-    except Exception:
+    def from_snapshot():
         grid = load_snapshot("threshold_simulator")
         key = f"{max(0.05, min(0.95, round(threshold / 0.05) * 0.05)):.2f}"
         return grid[key]
+    if DATA_SOURCE != "snowflake":
+        return from_snapshot()
+    try:
+        return _threshold_simulator_live(threshold)
+    except Exception:
+        return from_snapshot()
 
 def _threshold_simulator_live(threshold: float):
     conn = get_snowflake_connection()
@@ -233,8 +246,9 @@ def pipeline_health():
         }
 
     return {
-        "lakehouse_status": "healthy",
-        "snowflake_status": "healthy",
+        "data_source": DATA_SOURCE,
+        "research_data": ("live Snowflake warehouse" if DATA_SOURCE == "snowflake"
+                          else "snapshot computed by the pipeline (backend/generate_snapshots.py)"),
         "last_drift_check": drift_status,
         "drift_checked_at": drift_checked_at,
         "model_version": model_version,
@@ -243,6 +257,8 @@ def pipeline_health():
     }
 @app.get("/api/sensitivity-analysis")
 def sensitivity_analysis():
+    if DATA_SOURCE != "snowflake":
+        return load_snapshot("sensitivity_results")
     try:
         return _sensitivity_analysis_live()
     except Exception:
@@ -261,3 +277,53 @@ def _sensitivity_analysis_live():
     rows = [dict(zip(cols, row)) for row in cursor.fetchall()]
     conn.close()
     return rows
+
+
+# ---------------------------------------------------------------------------
+# Merchant analyzer: "where should I set my fraud cutoff?"
+# ---------------------------------------------------------------------------
+from backend.analyzer import AnalysisError, analyze, load_orders  # noqa: E402
+
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+
+
+@app.post("/api/analyze")
+async def analyze_orders(
+    file: UploadFile | None = File(None),
+    use_sample: bool = Form(False),
+    customer_value: float = Form(300.0),
+    churn_rate: float = Form(0.39),
+    chargeback_fee: float = Form(15.0),
+    current_threshold: float | None = Form(None),
+):
+    if use_sample:
+        with open(os.path.join(SAMPLE_DIR, "sample_orders.csv"), "rb") as f:
+            raw = f.read()
+    elif file is not None:
+        raw = await file.read(MAX_UPLOAD_BYTES + 1)
+        if len(raw) > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, "File is larger than 25 MB.")
+    else:
+        raise HTTPException(400, "Upload a CSV file or choose the sample data.")
+
+    try:
+        orders, warnings = load_orders(raw)
+        result = analyze(orders, customer_value=customer_value, churn_rate=churn_rate,
+                         chargeback_fee=chargeback_fee, current_threshold=current_threshold,
+                         warnings=warnings)
+    except AnalysisError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    result["source"] = "sample" if use_sample else "upload"
+    return result
+
+
+@app.get("/api/template.csv")
+def download_template():
+    return FileResponse(os.path.join(SAMPLE_DIR, "template.csv"), media_type="text/csv",
+                        filename="verdict_template.csv")
+
+
+@app.get("/api/sample-orders.csv")
+def download_sample_orders():
+    return FileResponse(os.path.join(SAMPLE_DIR, "sample_orders.csv"), media_type="text/csv",
+                        filename="verdict_sample_orders.csv")

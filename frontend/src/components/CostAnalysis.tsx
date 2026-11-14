@@ -94,7 +94,7 @@ export default function CostAnalysis() {
         <span style={{ font: "500 11px 'IBM Plex Mono',monospace", color: "var(--muted)", letterSpacing: ".08em", textTransform: "uppercase", border: "1px solid var(--border)", borderRadius: 999, padding: "6px 12px", whiteSpace: "nowrap" }}>{data.length} days</span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "var(--gap)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "var(--gap)" }}>
         <div className="tile-hover" style={tile}>
           <div style={tileLabel}><span style={dot("var(--blue)")} /><span style={labelText}>Verdict cost</span></div>
           <div style={bigNumber("var(--blue)")}>{fmt(animatedRiskflow)}</div>

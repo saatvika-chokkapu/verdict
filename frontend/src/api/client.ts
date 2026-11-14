@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE = "https://riskflow-api-1odp.onrender.com";
+const API_BASE = import.meta.env.VITE_API_URL || "https://riskflow-api-1odp.onrender.com";
 
 // The API runs on a free tier that spins down when idle; a cold start can take
 // up to a minute. Retry with backoff instead of failing on the first attempt.
@@ -28,3 +28,40 @@ export const getThresholdSimulation = (threshold: number) =>
 export const getPipelineHealth = () => getWithRetry("/api/pipeline/health");
 
 export const getSensitivityAnalysis = () => getWithRetry("/api/sensitivity-analysis");
+
+export const API_URL = API_BASE;
+
+export type AnalyzeInputs = {
+  file?: File | null;
+  useSample?: boolean;
+  customerValue: number;
+  churnRate: number;
+  chargebackFee: number;
+  currentThreshold?: number | null;
+};
+
+// Analysis can arrive while the API is cold, so allow a longer timeout and one retry
+// for network failures (but never retry a 4xx: that is a problem with the file).
+export async function analyzeOrders(inputs: AnalyzeInputs) {
+  const form = new FormData();
+  if (inputs.useSample) form.append("use_sample", "true");
+  if (inputs.file) form.append("file", inputs.file);
+  form.append("customer_value", String(inputs.customerValue));
+  form.append("churn_rate", String(inputs.churnRate));
+  form.append("chargeback_fee", String(inputs.chargebackFee));
+  if (inputs.currentThreshold != null) form.append("current_threshold", String(inputs.currentThreshold));
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await api.post("/api/analyze", form, { timeout: 70000 });
+      return res.data;
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status && status < 500) {
+        throw new Error(err.response.data?.detail || "The file could not be analyzed.");
+      }
+      if (attempt >= 1) throw new Error("The analysis service did not respond. It may be waking up, so try again in a minute.");
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+  }
+}

@@ -57,7 +57,7 @@ export default function ThresholdSimulator() {
       </div>
 
       {result && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--gap)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "var(--gap)" }}>
           <div className="tile-hover" style={tile}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><span style={dot("var(--blue)")} /><span style={labelText}>Fraud caught</span></div>
             <div style={{ font: "500 28px/1 'IBM Plex Mono',monospace", color: "var(--blue)", fontVariantNumeric: "tabular-nums" }}>{result.fraud_caught_count.toLocaleString()}</div>

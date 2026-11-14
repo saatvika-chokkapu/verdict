@@ -1,10 +1,9 @@
 name: dbt CI
 
+# Runs against the Snowflake warehouse, which is only active while a Snowflake
+# account is attached. Trigger manually from the Actions tab when it is.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   dbt-test:

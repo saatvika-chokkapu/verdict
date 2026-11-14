@@ -28,7 +28,7 @@ export default function SkeletonCard({ title, subtitle, tiles = 3, delay }: Skel
               animation: "pulseDot 1.4s ease-out infinite",
             }}
           />
-          fetching live data
+          loading
         </span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${tiles}, 1fr)`, gap: "var(--gap)", marginTop: 24 }}>

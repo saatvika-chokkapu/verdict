@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 type Props = { title: string; onClose: () => void; wide?: boolean; children: React.ReactNode };
 
@@ -18,7 +19,10 @@ export default function Modal({ title, onClose, wide, children }: Props) {
     };
   }, [onClose]);
 
-  return (
+  // Rendered at the top of the app so that animated or transformed ancestors
+  // can't shift a fixed-position popup away from the center of the screen.
+  const host = document.querySelector(".app") || document.body;
+  return createPortal(
     <div className="modal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={`modal${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref}>
         <div className="modal-head">
@@ -27,6 +31,7 @@ export default function Modal({ title, onClose, wide, children }: Props) {
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    host,
   );
 }

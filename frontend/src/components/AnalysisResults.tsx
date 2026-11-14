@@ -93,6 +93,16 @@ export function VerdictBlock({ result: r }: { result: any }) {
       <p className="verdict-line">{headline}</p>
       {meaningful && <p className="saves">Saves about {money(savingsShown)}{perMonth ? " a month" : " on these orders"}</p>}
       <p className="note">{explanation}</p>
+      {meaningful && r.backtest && (
+        <p className={`checked${r.backtest.holds ? "" : " failed"}`}>
+          {r.backtest.holds
+            ? <>Checked on your latest {Math.round(r.backtest.test_days)} days of orders, which played no part in choosing the cutoff: it saved <b>{money(r.backtest.savings)}</b> there ({r.backtest.savings_pct.toFixed(1)}%).</>
+            : <>Checked on your latest {Math.round(r.backtest.test_days)} days of orders, which played no part in choosing the cutoff: it cost <b>{money(-r.backtest.savings)}</b> more there. Treat this recommendation with caution.</>}
+        </p>
+      )}
+      {meaningful && !r.backtest && (
+        <p className="fine" style={{ marginTop: 10 }}>Add an order date column and at least 600 orders to have this checked on orders it hasn't seen.</p>
+      )}
 
       <div className="ruler" aria-label="Which risk scores are declined today and at the recommended cutoff">
         {hasCurrent && (
@@ -162,7 +172,8 @@ export function ChartBlock({ result: r }: { result: any }) {
 /** Block 4: cutoffs by order size, plus the detail popups. */
 export function DetailBlock({ result: r }: { result: any }) {
   const { fmtT } = useResultHelpers(r);
-  const [popup, setPopup] = useState<null | "compare" | "whatif" | "method">(null);
+  const [popup, setPopup] = useState<null | "compare" | "whatif" | "method" | "check">(null);
+  const bt = r.backtest;
   const cur = r.current, rec = r.recommended;
   const size = r.by_order_size;
   const holds = r.sensitivity.filter((s: any) => s.savings > 0).length;
@@ -203,7 +214,33 @@ export function DetailBlock({ result: r }: { result: any }) {
         <button className="btn-link" onClick={() => setPopup("compare")}>Compare today and recommended</button>
         <button className="btn-link" onClick={() => setPopup("whatif")}>What if my numbers are off?</button>
         <button className="btn-link" onClick={() => setPopup("method")}>How this was calculated</button>
+        {bt && <button className="btn-link" onClick={() => setPopup("check")}>How it was checked</button>}
       </div>
+
+      {popup === "check" && bt && (
+        <Modal title="Checked on orders it hadn't seen" onClose={() => setPopup(null)}>
+          <p className="note" style={{ marginBottom: 14 }}>
+            A cutoff always looks good on the orders it was chosen from. So Verdict chose one using only your
+            earlier orders, then measured it on your most recent ones.
+          </p>
+          <div className="table-scroll">
+            <table className="compare">
+              <tbody>
+                <tr><td>Chosen from</td><td>{bt.train_orders.toLocaleString()} orders, first {Math.round(bt.train_days)} days</td></tr>
+                <tr><td>Cutoff that came out</td><td style={{ fontWeight: 600 }}>{fmtT(bt.cutoff)}</td></tr>
+                <tr><td>Measured on</td><td>{bt.test_orders.toLocaleString()} orders, last {Math.round(bt.test_days)} days</td></tr>
+                <tr><td>Cost there with today's setup</td><td>{money(bt.cost_today)}</td></tr>
+                <tr><td>Cost there with that cutoff</td><td>{money(bt.cost_at_cutoff)}</td></tr>
+                <tr><td style={{ fontWeight: 600 }}>Savings on unseen orders</td><td className={bt.holds ? "better" : "worse"}>{money(bt.savings)} ({bt.savings_pct.toFixed(1)}%)</td></tr>
+                <tr><td>Best possible in hindsight</td><td>{money(bt.hindsight_savings)} at a cutoff of {fmtT(bt.hindsight_cutoff)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="note" style={{ marginTop: 14 }}>
+            The recommended cutoff of {fmtT(rec.threshold)} on this page uses all your orders, so it can differ slightly from the {fmtT(bt.cutoff)} used in this check.
+          </p>
+        </Modal>
+      )}
 
       {popup === "compare" && (
         <Modal title="Today against the recommended cutoff" onClose={() => setPopup(null)}>

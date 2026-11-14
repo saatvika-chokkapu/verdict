@@ -212,3 +212,46 @@ def test_rate_limit_returns_429(monkeypatch):
     codes = [client.post("/api/analyze", data={"use_sample": "true"}).status_code for _ in range(3)]
     main._recent.clear()
     assert codes == [200, 200, 429]
+
+
+# --- out-of-time backtest ---
+
+def sample_result(**kw):
+    orders, w = load_orders(open("backend/sample_data/sample_orders.csv", "rb").read())
+    return analyze(orders, warnings=w, **kw), orders
+
+
+def test_backtest_splits_by_time_without_overlap():
+    r, orders = sample_result()
+    b = r["backtest"]
+    assert b["train_orders"] + b["test_orders"] == r["rows"]
+    assert b["train_orders"] == int(r["rows"] * 2 / 3)
+    assert abs(b["train_days"] + b["test_days"] - r["period_days"]) < 1.5
+
+
+def test_backtest_cutoff_cannot_beat_hindsight():
+    # A cutoff chosen without seeing the later orders can match, but never beat,
+    # the best cutoff for those orders.
+    b = sample_result()[0]["backtest"]
+    assert b["savings"] <= b["hindsight_savings"] + 0.01
+
+
+def test_backtest_ignores_later_orders_when_choosing():
+    # Corrupting the most recent third must not change the cutoff that was chosen.
+    orders, w = load_orders(open("backend/sample_data/sample_orders.csv", "rb").read())
+    before = analyze(orders, warnings=w)["backtest"]["cutoff"]
+    late = orders["date"] >= orders["date"].sort_values().iloc[int(len(orders) * 2 / 3)]
+    tampered = orders.copy()
+    tampered.attrs = orders.attrs
+    tampered.loc[late, "score"] = 0.99
+    tampered.loc[late & tampered["fraud"].notna(), "fraud"] = 1.0
+    assert analyze(tampered, warnings=w)["backtest"]["cutoff"] == before
+
+
+def test_no_backtest_without_dates_or_with_few_orders():
+    orders, w = load_orders(to_csv(tiny_store()))          # no date column
+    assert analyze(orders, warnings=w)["backtest"] is None
+    df = tiny_store(300)
+    df["created_at"] = pd.date_range("2026-01-01", periods=300, freq="h")
+    orders, w = load_orders(to_csv(df))
+    assert analyze(orders, warnings=w)["backtest"] is None

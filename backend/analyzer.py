@@ -263,6 +263,77 @@ def _size_bands(amount, score, p_fraud, customer_cost, fee, scale, overall_thres
     }
 
 
+MIN_BACKTEST_ORDERS = 600
+MIN_BACKTEST_DAYS = 14.0
+BACKTEST_TRAIN_SHARE = 2 / 3
+
+
+def _backtest(orders, amount, score, current_decline, customer_cost, fee, scale):
+    """
+    Check the recommendation on orders it has not seen.
+
+    Choosing a cutoff and measuring its savings on the same orders flatters the
+    result: the cutoff is tuned to exactly those orders. Here the cutoff is
+    chosen using only the earlier two thirds of orders (by date), then scored
+    on the most recent third, which played no part in choosing it. Nothing from
+    the later period leaks backwards: the score-to-fraud curve is also fitted
+    on the earlier orders alone.
+
+    Returns None when there is no date column or too little data to split.
+    """
+    if "date" not in orders:
+        return None
+    dates = orders["date"]
+    if dates.isna().any() or len(orders) < MIN_BACKTEST_ORDERS:
+        return None
+    order = np.argsort(dates.to_numpy(), kind="stable")
+    split = int(len(order) * BACKTEST_TRAIN_SHARE)
+    train = np.zeros(len(orders), dtype=bool)
+    train[order[:split]] = True
+    test = ~train
+
+    def days(mask):
+        d = dates[mask]
+        return (d.max() - d.min()).total_seconds() / 86400
+
+    train_days, test_days = days(train), days(test)
+    if train_days + test_days < MIN_BACKTEST_DAYS or test_days < 1:
+        return None
+
+    fraud = orders["fraud"].to_numpy(float)
+    labeled = orders["fraud"].notna().to_numpy()
+    estimate, _ = _fraud_estimate(score, fraud, labeled & train)
+    p_fraud = np.where(labeled, np.nan_to_num(fraud), estimate)
+
+    def cost(mask, decline):
+        return _policy_cost(decline[mask], p_fraud[mask], amount[mask], customer_cost, fee)
+
+    def best_cutoff(mask):
+        return min(GRID, key=lambda t: cost(mask, score >= t)["cost"])
+
+    chosen = float(best_cutoff(train))
+    hindsight = float(best_cutoff(test))
+    today = cost(test, current_decline)
+    with_chosen = cost(test, score >= chosen)
+    with_hindsight = cost(test, score >= hindsight)
+    savings = today["cost"] - with_chosen["cost"]
+
+    return {
+        "train_orders": int(train.sum()), "test_orders": int(test.sum()),
+        "train_days": round(train_days, 1), "test_days": round(test_days, 1),
+        "cutoff": round(chosen * scale, 2),
+        "cost_today": round(today["cost"], 2),
+        "cost_at_cutoff": round(with_chosen["cost"], 2),
+        "savings": round(savings, 2),
+        "savings_pct": round(savings / today["cost"] * 100, 2) if today["cost"] else 0.0,
+        "monthly_savings": round(savings / test_days * 30, 2),
+        # What the best cutoff for the later period turned out to be, known only in hindsight.
+        "hindsight_cutoff": round(hindsight * scale, 2),
+        "hindsight_savings": round(today["cost"] - with_hindsight["cost"], 2),
+        "holds": bool(savings > 0),
+    }
+
+
 def _round_policy(d: dict) -> dict:
     return {k: (round(v, 2) if isinstance(v, float) else v) for k, v in d.items()}
 
@@ -339,6 +410,8 @@ def analyze(orders: pd.DataFrame,
             "savings_pct": round((cur_m - rec_m) / cur_m * 100, 2) if cur_m else 0.0,
         })
 
+    backtest = _backtest(orders, amount, score, current_decline, customer_cost, chargeback_fee, scale)
+
     period_days = None
     monthly_savings = None
     if "date" in orders and orders["date"].notna().sum() > 1:
@@ -372,6 +445,7 @@ def analyze(orders: pd.DataFrame,
         "monthly_savings": monthly_savings,
         "curve": curve,
         "by_order_size": by_size,
+        "backtest": backtest,
         "sensitivity": sensitivity,
         "warnings": warnings,
     }

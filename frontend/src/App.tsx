@@ -10,8 +10,8 @@ import ThresholdSimulator from "./components/ThresholdSimulator";
 // Links shown in the About strip at the bottom. Leave one empty to hide it.
 const LINKS = {
   github: "https://github.com/saatvika-chokkapu/verdict",
-  portfolio: "",
-  linkedin: "",
+  portfolio: "https://saatvikachokkapu.com/",
+  linkedin: "https://www.linkedin.com/in/saatvikachokkapu/",
 };
 
 const PIPELINE: [string, string][] = [

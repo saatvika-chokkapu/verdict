@@ -4,11 +4,11 @@ import { getSensitivityAnalysis } from "../api/client";
 import SkeletonCard, { ErrorCard } from "./Skeleton";
 
 const card: React.CSSProperties = {
-  background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
+  background: "var(--card)", border: "1px solid var(--border)", borderRadius: 18,
   padding: "var(--card-pad)", boxShadow: "var(--shadow)", marginBottom: "18px",
   animation: "cardIn .5s ease-out both", animationDelay: "100ms",
 };
-const labelText: React.CSSProperties = { font: "500 11px 'IBM Plex Mono',monospace", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--muted)" };
+const labelText: React.CSSProperties = { font: "500 13px var(--body)", letterSpacing: "0", color: "var(--muted)" };
 
 function findBreakeven(data: any[]): number | null {
   for (let i = 0; i < data.length - 1; i++) {
@@ -41,8 +41,8 @@ export default function SensitivityAnalysis() {
 
   return (
     <section style={card}>
-      <h2 style={{ margin: 0, font: "600 19px 'Inter'", letterSpacing: "-.01em" }}>How sensitive is this result to our assumptions?</h2>
-      <p style={{ margin: "7px 0 20px", font: "400 13px 'Inter'", color: "var(--muted)", maxWidth: 600 }}>
+      <h2 style={{ margin: 0, font: "600 19px var(--body)", letterSpacing: "-.01em" }}>How sensitive is this result to our assumptions?</h2>
+      <p style={{ margin: "7px 0 20px", font: "400 13px var(--body)", color: "var(--muted)", maxWidth: 600 }}>
         The $126K savings figure relies on two documented, not derived, assumptions. Here's how that result holds up if they're wrong.
       </p>
 
@@ -56,21 +56,21 @@ export default function SensitivityAnalysis() {
                    labelFormatter={(label) => `${label}x assumption`} />
           <ReferenceLine y={0} stroke="var(--muted)" strokeDasharray="3 3" />
           {breakeven && (
-            <ReferenceLine x={breakeven} stroke="var(--violet)" strokeDasharray="4 4"
-              label={{ value: `breakeven ~${breakeven.toFixed(2)}x`, position: "top", fontSize: 11, fill: "var(--violet)" }} />
+            <ReferenceLine x={breakeven} stroke="var(--blue)" strokeDasharray="4 4"
+              label={{ value: `breakeven ~${breakeven.toFixed(2)}x`, position: "top", fontSize: 11, fill: "var(--blue)" }} />
           )}
-          <Line type="monotone" dataKey="savings_pct" stroke="var(--violet)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--violet)" }} animationDuration={900} />
+          <Line type="monotone" dataKey="savings_pct" stroke="var(--blue)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--blue)" }} animationDuration={900} />
         </LineChart>
       </ResponsiveContainer>
-      <p style={{ textAlign: "center", margin: "4px 0 0", font: "400 11px 'IBM Plex Mono',monospace", color: "var(--muted)" }}>
+      <p style={{ textAlign: "center", margin: "4px 0 0", font: "400 11px var(--body)", color: "var(--muted)" }}>
         cost assumption multiplier (1.0x = documented estimate)
       </p>
 
       <div className="tile-hover" style={{ marginTop: 16, padding: "12px 16px", background: "var(--tile)", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}>
         <span style={labelText}>Honest read</span>
-        <p style={{ margin: "8px 0 0", font: "400 13px 'Inter'", color: "var(--text)" }}>
+        <p style={{ margin: "8px 0 0", font: "400 13px var(--body)", color: "var(--text)" }}>
           Verdict beats the naive baseline as long as the real cost of losing a customer isn't more than
-          about <strong style={{ color: "var(--violet)" }}>{breakeven ? `${breakeven.toFixed(2)}x` : "—"}</strong> our documented estimate. Past that point, the naive approach would actually perform better.
+          about <strong style={{ color: "var(--blue)" }}>{breakeven ? `${breakeven.toFixed(2)}x` : "—"}</strong> our documented estimate. Past that point, the naive approach would actually perform better.
         </p>
       </div>
     </section>

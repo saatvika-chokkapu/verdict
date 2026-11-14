@@ -98,6 +98,7 @@ def test_api_sample_analysis():
     assert body["rows"] > 1000
     assert len(body["curve"]) == 99
     assert body["recommended"]["threshold"] > 0
+    assert body["current_cutoff"] == 55  # the sample store declines everything scoring 55+
 
 
 def test_api_upload_and_bad_file():

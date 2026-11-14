@@ -3,7 +3,7 @@ import { getPipelineHealth } from "../api/client";
 import SkeletonCard, { ErrorCard } from "./Skeleton";
 
 const card: React.CSSProperties = {
-  background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
+  background: "var(--card)", border: "1px solid var(--border)", borderRadius: 18,
   padding: "var(--card-pad)", boxShadow: "var(--shadow)", animation: "cardIn .5s ease-out both", animationDelay: "300ms",
 };
 const tile: React.CSSProperties = {
@@ -11,7 +11,7 @@ const tile: React.CSSProperties = {
   padding: "var(--tile-pad)",
 };
 const labelText: React.CSSProperties = {
-  font: "500 11px 'IBM Plex Mono',monospace", letterSpacing: ".12em", textTransform: "uppercase",
+  font: "500 13px var(--body)", letterSpacing: "0",
   color: "var(--muted)", marginBottom: 13,
 };
 
@@ -26,7 +26,7 @@ function StatusPill({ value }: { value: string }) {
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 7,
       background: `color-mix(in oklab,${color} 15%,transparent)`, color,
-      padding: "6px 12px", borderRadius: 999, font: "600 13px 'IBM Plex Mono',monospace",
+      padding: "6px 12px", borderRadius: 999, font: "600 13px var(--body)",
     }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />
       {label}
@@ -49,8 +49,8 @@ export default function PipelineHealth() {
 
   return (
     <section style={card}>
-      <h2 style={{ margin: "0 0 22px", font: "600 19px 'Inter'", letterSpacing: "-.01em" }}>System status</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: "var(--gap)" }}>
+      <h2 style={{ margin: "0 0 22px", font: "600 19px var(--body)", letterSpacing: "-.01em" }}>System status</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: "var(--gap)" }}>
         <div className="tile-hover" style={tile}>
           <div style={labelText}>API</div>
           <StatusPill value="online" />
@@ -65,17 +65,17 @@ export default function PipelineHealth() {
         </div>
         <div className="tile-hover" style={tile}>
           <div style={labelText}>Model version</div>
-          <div style={{ font: "500 20px 'IBM Plex Mono',monospace", color: "var(--text)" }}>{String(health.model_version).startsWith("unknown") ? "LightGBM v1" : health.model_version}</div>
+          <div style={{ font: "500 20px var(--body)", color: "var(--text)" }}>{String(health.model_version).startsWith("unknown") ? "LightGBM v1" : health.model_version}</div>
         </div>
         <div className="tile-hover" style={tile} title={health.latency_measured_at ? `Measured ${health.latency_mode}, n=${health.latency_sample_size}, ${health.latency_measured_at}` : "Run backend/benchmark_latency.py"}>
           <div style={labelText}>Latency p50</div>
-          <div style={{ font: "500 20px 'IBM Plex Mono',monospace", color: "var(--text)" }}>
+          <div style={{ font: "500 20px var(--body)", color: "var(--text)" }}>
             {health.api_latency_ms_p50 ?? "—"}<span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 1 }}>ms</span>
           </div>
         </div>
         <div className="tile-hover" style={tile} title={health.latency_measured_at ? `Measured ${health.latency_mode}, n=${health.latency_sample_size}` : "Run backend/benchmark_latency.py"}>
           <div style={labelText}>Latency p95</div>
-          <div style={{ font: "500 20px 'IBM Plex Mono',monospace", color: "var(--text)" }}>
+          <div style={{ font: "500 20px var(--body)", color: "var(--text)" }}>
             {health.api_latency_ms_p95 ?? "—"}<span style={{ fontSize: 13, color: "var(--muted)", marginLeft: 1 }}>ms</span>
           </div>
         </div>

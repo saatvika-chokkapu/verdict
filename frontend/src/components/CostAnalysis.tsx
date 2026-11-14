@@ -4,7 +4,7 @@ import { getCostAnalysis } from "../api/client";
 import SkeletonCard, { ErrorCard } from "./Skeleton";
 
 const card: React.CSSProperties = {
-  background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
+  background: "var(--card)", border: "1px solid var(--border)", borderRadius: 18,
   padding: "var(--card-pad)", boxShadow: "var(--shadow)", marginBottom: "18px",
   animation: "cardIn .5s ease-out both",
 };
@@ -15,10 +15,10 @@ const tile: React.CSSProperties = {
 const tileLabel: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, marginBottom: 16 };
 const dot = (color: string): React.CSSProperties => ({ width: 7, height: 7, borderRadius: 2, background: color });
 const labelText: React.CSSProperties = {
-  font: "500 11px 'IBM Plex Mono',monospace", letterSpacing: ".14em", textTransform: "uppercase", color: "var(--muted)",
+  font: "500 13px var(--body)", letterSpacing: "0", color: "var(--muted)",
 };
 const bigNumber = (color: string): React.CSSProperties => ({
-  font: "500 30px/1 'IBM Plex Mono',monospace", color, fontVariantNumeric: "tabular-nums", letterSpacing: "-.01em",
+  font: "500 30px/1 var(--body)", color, fontVariantNumeric: "tabular-nums", letterSpacing: "-.01em",
 });
 
 function useCountUp(target: number, durationMs = 800) {
@@ -45,14 +45,14 @@ function CustomTooltip({ active, payload, label }: any) {
   const naive = payload.find((p: any) => p.dataKey === "naive_total_cost");
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "9px 12px", boxShadow: "0 6px 20px var(--shadow-color)", minWidth: 128 }}>
-      <div style={{ font: "500 10px 'IBM Plex Mono',monospace", color: "var(--muted)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 7 }}>{label}</div>
+      <div style={{ font: "500 10px var(--body)", color: "var(--muted)", letterSpacing: "0", marginBottom: 7 }}>{label}</div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, marginBottom: 4 }}>
-        <span style={{ font: "400 11px 'Inter'", color: "var(--muted)" }}>Verdict</span>
-        <span style={{ font: "600 12px 'IBM Plex Mono',monospace", color: "var(--blue)" }}>${Math.round(rf?.value || 0).toLocaleString()}</span>
+        <span style={{ font: "400 11px var(--body)", color: "var(--muted)" }}>Verdict</span>
+        <span style={{ font: "600 12px var(--body)", color: "var(--blue)" }}>${Math.round(rf?.value || 0).toLocaleString()}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
-        <span style={{ font: "400 11px 'Inter'", color: "var(--muted)" }}>Naive</span>
-        <span style={{ font: "600 12px 'IBM Plex Mono',monospace", color: "var(--violet)" }}>${Math.round(naive?.value || 0).toLocaleString()}</span>
+        <span style={{ font: "400 11px var(--body)", color: "var(--muted)" }}>Naive</span>
+        <span style={{ font: "600 12px var(--body)", color: "var(--violet)" }}>${Math.round(naive?.value || 0).toLocaleString()}</span>
       </div>
     </div>
   );
@@ -88,27 +88,27 @@ export default function CostAnalysis() {
     <section style={card}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h2 style={{ margin: 0, font: "600 19px 'Inter'", letterSpacing: "-.01em" }}>Cost analysis</h2>
-          <p style={{ margin: "7px 0 0", font: "400 13px 'Inter'", color: "var(--muted)", maxWidth: 520 }}>Verdict's cost-aware decisioning vs. a naive fixed-threshold baseline.</p>
+          <h2 style={{ margin: 0, font: "600 19px var(--body)", letterSpacing: "-.01em" }}>Cost analysis</h2>
+          <p style={{ margin: "7px 0 0", font: "400 13px var(--body)", color: "var(--muted)", maxWidth: 520 }}>Verdict's cost-aware decisioning vs. a naive fixed-threshold baseline.</p>
         </div>
-        <span style={{ font: "500 11px 'IBM Plex Mono',monospace", color: "var(--muted)", letterSpacing: ".08em", textTransform: "uppercase", border: "1px solid var(--border)", borderRadius: 999, padding: "6px 12px", whiteSpace: "nowrap" }}>{data.length} days</span>
+        <span style={{ font: "500 11px var(--body)", color: "var(--muted)", letterSpacing: "0", border: "1px solid var(--border)", borderRadius: 999, padding: "6px 12px", whiteSpace: "nowrap" }}>{data.length} days</span>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "var(--gap)" }}>
         <div className="tile-hover" style={tile}>
           <div style={tileLabel}><span style={dot("var(--blue)")} /><span style={labelText}>Verdict cost</span></div>
           <div style={bigNumber("var(--blue)")}>{fmt(animatedRiskflow)}</div>
-          <div style={{ marginTop: 9, font: "400 12px 'Inter'", color: "var(--muted)" }}>cost-aware decisioning</div>
+          <div style={{ marginTop: 9, font: "400 12px var(--body)", color: "var(--muted)" }}>cost-aware decisioning</div>
         </div>
         <div className="tile-hover" style={tile}>
           <div style={tileLabel}><span style={dot("var(--violet)")} /><span style={labelText}>Naive cost</span></div>
           <div style={bigNumber("var(--violet)")}>{fmt(animatedNaive)}</div>
-          <div style={{ marginTop: 9, font: "400 12px 'Inter'", color: "var(--muted)" }}>fixed 0.50 threshold</div>
+          <div style={{ marginTop: 9, font: "400 12px var(--body)", color: "var(--muted)" }}>fixed 0.50 threshold</div>
         </div>
         <div className="tile-hover" style={tile}>
           <div style={tileLabel}><span style={dot("var(--teal)")} /><span style={labelText}>Savings</span></div>
-          <div style={{ font: "600 30px/1 'IBM Plex Mono',monospace", color: "var(--teal)", fontVariantNumeric: "tabular-nums" }}>{fmt(animatedSavings)}</div>
-          <div style={{ marginTop: 11, display: "inline-flex", alignItems: "center", gap: 5, background: "color-mix(in oklab,var(--teal) 16%,transparent)", color: "var(--teal)", padding: "4px 9px", borderRadius: 999, font: "600 11px 'IBM Plex Mono',monospace" }}><span>↓</span>{savingsPct}% lower cost</div>
+          <div style={{ font: "600 30px/1 var(--body)", color: "var(--teal)", fontVariantNumeric: "tabular-nums" }}>{fmt(animatedSavings)}</div>
+          <div style={{ marginTop: 11, display: "inline-flex", alignItems: "center", gap: 5, background: "color-mix(in oklab,var(--teal) 16%,transparent)", color: "var(--teal)", padding: "4px 9px", borderRadius: 999, font: "600 11px var(--body)" }}><span>↓</span>{savingsPct}% lower cost</div>
         </div>
       </div>
 
@@ -132,8 +132,8 @@ export default function CostAnalysis() {
       </ResponsiveContainer>
 
       <div style={{ display: "flex", gap: 22, marginTop: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 15, height: 3, borderRadius: 2, background: "var(--blue)" }} /><span style={{ font: "400 12px 'Inter'", color: "var(--muted)" }}>Verdict — cost-aware</span></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 15, height: 3, borderRadius: 2, background: "var(--violet)" }} /><span style={{ font: "400 12px 'Inter'", color: "var(--muted)" }}>Naive — fixed threshold</span></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 15, height: 3, borderRadius: 2, background: "var(--blue)" }} /><span style={{ font: "400 12px var(--body)", color: "var(--muted)" }}>Verdict — cost-aware</span></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 15, height: 3, borderRadius: 2, background: "var(--violet)" }} /><span style={{ font: "400 12px var(--body)", color: "var(--muted)" }}>Naive — fixed threshold</span></div>
       </div>
     </section>
   );

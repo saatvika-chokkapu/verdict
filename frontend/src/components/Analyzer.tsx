@@ -1,8 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { analyzeOrders, API_URL } from "../api/client";
-import AnalysisResults from "./AnalysisResults";
+import { useRef, useState } from "react";
+import { API_URL } from "../api/client";
+import Modal from "./Modal";
 
-type Props = { sampleRequest: number };
+export type Numbers = { customerValue: string; churn: string; fee: string; currentCutoff: string };
+
+type Props = {
+  file: File | null;
+  useSample: boolean;
+  numbers: Numbers;
+  loading: boolean;
+  error: string | null;
+  onFile: (f: File | null) => void;
+  onSample: () => void;
+  onNumbers: (n: Numbers) => void;
+  onAnalyze: () => void;
+  onError: (msg: string | null) => void;
+};
 
 function NumberField(props: {
   label: string; help: string; prefix?: string; suffix?: string;
@@ -22,128 +35,130 @@ function NumberField(props: {
   );
 }
 
-export default function Analyzer({ sampleRequest }: Props) {
-  const [file, setFile] = useState<File | null>(null);
-  const [useSample, setUseSample] = useState(false);
-  const [customerValue, setCustomerValue] = useState("300");
-  const [churn, setChurn] = useState("39");
-  const [fee, setFee] = useState("15");
-  const [currentCutoff, setCurrentCutoff] = useState("");
+export function NumbersModal({ numbers, onSave, onClose, saveLabel }: {
+  numbers: Numbers; onSave: (n: Numbers) => void; onClose: () => void; saveLabel: string;
+}) {
+  const [draft, setDraft] = useState(numbers);
+  const set = (k: keyof Numbers) => (v: string) => setDraft({ ...draft, [k]: v });
+  return (
+    <Modal title="Your numbers" onClose={onClose}>
+      <NumberField label="What a customer is worth to you" prefix="$" value={draft.customerValue} onChange={set("customerValue")}
+        help="Average profit from a customer over their whole relationship with you, not just one order." />
+      <NumberField label="Good customers who leave after a decline" suffix="%" value={draft.churn} onChange={set("churn")}
+        help="Share of wrongly declined customers who never come back. 39% is a commonly cited industry figure." />
+      <NumberField label="Fee per chargeback" prefix="$" value={draft.fee} onChange={set("fee")}
+        help="What your payment processor charges per dispute, on top of the refunded amount." />
+      <NumberField label="Your current cutoff (optional)" value={draft.currentCutoff} onChange={set("currentCutoff")} placeholder="for example 75"
+        help="Only needed if your file has no 'declined' column." />
+      <button className="btn btn-primary btn-wide" onClick={() => { onSave(draft); onClose(); }}>{saveLabel}</button>
+    </Modal>
+  );
+}
+
+export default function Analyzer(p: Props) {
   const [dragOver, setDragOver] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<any>(null);
+  const [popup, setPopup] = useState<null | "numbers" | "format">(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const resultsRef = useRef<HTMLDivElement>(null);
 
-  const run = async (opts?: { sample?: boolean }) => {
-    const sample = opts?.sample ?? useSample;
-    if (!sample && !file) { setError("Choose a CSV file first, or try the sample store."); return; }
-    const cv = parseFloat(customerValue), cr = parseFloat(churn), cf = parseFloat(fee);
-    if ([cv, cr, cf].some((n) => Number.isNaN(n) || n < 0) || cr > 100) {
-      setError("Check your numbers: values must be positive and the percentage between 0 and 100.");
-      return;
-    }
-    setLoading(true); setError(null);
-    try {
-      const data = await analyzeOrders({
-        file: sample ? null : file, useSample: sample,
-        customerValue: cv, churnRate: cr / 100, chargebackFee: cf,
-        currentThreshold: currentCutoff.trim() ? parseFloat(currentCutoff) : null,
-      });
-      setResult(data);
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // The hero's "Try with a sample store" button increments sampleRequest.
-  useEffect(() => {
-    if (sampleRequest > 0) { setUseSample(true); setFile(null); run({ sample: true }); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sampleRequest]);
-
-  const pickFile = (f: File | undefined | null) => {
+  const pick = (f: File | undefined | null) => {
     if (!f) return;
-    if (!f.name.toLowerCase().endsWith(".csv")) { setError("Please upload a .csv file."); return; }
-    setFile(f); setUseSample(false); setError(null);
+    if (!f.name.toLowerCase().endsWith(".csv")) { p.onError("That file isn't a CSV. Export your orders as .csv and try again."); return; }
+    p.onFile(f);
   };
+  const chosen = p.file ? p.file.name : p.useSample ? "Sample store, 25,000 orders" : null;
 
   return (
-    <>
-      <section className="panel" id="analyze">
-        <span className="eyebrow">Analyze your store</span>
-        <h2 style={{ marginTop: 8 }}>Find the cheapest fraud cutoff for your margins</h2>
-        <p className="sub">
-          Export your recent orders with the risk score your fraud tool gave each one. Verdict prices every
-          possible cutoff in dollars, counting both fraud you let through and good customers you turn away.
-        </p>
-
-        <div className="tool-grid">
-          <div>
-            <div
-              className={`dropzone${dragOver ? " over" : ""}`}
-              onClick={() => fileInput.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); pickFile(e.dataTransfer.files?.[0]); }}
-            >
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ color: "var(--teal)" }}>
-                <path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <b>Drop your orders CSV here</b>
-              <span>or click to choose a file · up to 25 MB</span>
-              {file && <span className="file-chip">✓ {file.name}</span>}
-              {useSample && !file && <span className="file-chip">✓ Sample store · 25,000 orders</span>}
-              <input ref={fileInput} type="file" accept=".csv,text/csv" hidden
-                     onChange={(e) => pickFile(e.target.files?.[0])} />
-            </div>
-
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
-              <button className="btn-link" onClick={() => { setUseSample(true); setFile(null); setError(null); }}>
-                Use the sample store instead
-              </button>
-              <a className="btn-link" href={`${API_URL}/api/template.csv`}>Download the CSV template</a>
-            </div>
-
-            <div className="alert alert-note" style={{ marginTop: 16 }}>
-              <b style={{ color: "var(--text)" }}>Columns we look for.</b> Required: order <code>amount</code> and
-              {" "}<code>risk_score</code> (0–1 or 0–100). Optional but recommended: <code>declined</code> (what your
-              current rule did), <code>chargeback</code> (whether an approved order later turned out to be fraud),
-              and a date column. Common names like "Order Total" or "Risk Score" are recognized.
-            </div>
-          </div>
-
-          <div>
-            <NumberField label="What a customer is worth to you" prefix="$" value={customerValue} onChange={setCustomerValue}
-              help="Average profit from a customer over their whole relationship with you, not just one order." />
-            <NumberField label="Good customers who leave after a decline" suffix="%" value={churn} onChange={setChurn}
-              help="Share of wrongly declined customers who never come back. 39% is a commonly cited industry figure." />
-            <NumberField label="Fee per chargeback" prefix="$" value={fee} onChange={setFee}
-              help="What your payment processor charges per dispute, on top of the refunded amount." />
-            <NumberField label="Your current cutoff (optional)" value={currentCutoff} onChange={setCurrentCutoff}
-              placeholder="e.g. 75"
-              help="Only used if your file has no 'declined' column, so we can compare against what you do today." />
-
-            <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }}
-                    disabled={loading} onClick={() => run()}>
-              {loading ? <><span className="spinner" /> Analyzing…</> : "Analyze my orders"}
-            </button>
-            <p className="fine" style={{ marginTop: 10 }}>
-              Your file is analyzed in memory and is not stored. The first run can take up to a minute while the server wakes up.
-            </p>
-          </div>
+    <div className="view">
+      <div className="start">
+        <div>
+          <h1 className="display">Your fraud filter may be costing you more than fraud.</h1>
+          <p className="lead">
+            Every declined order is either fraud you stopped or a good customer you turned away.
+            Verdict reads your own orders and finds the risk-score cutoff that costs you the least.
+          </p>
         </div>
 
-        {error && <div className="alert alert-error">{error}</div>}
-      </section>
+        <div className="upload-card">
+          {chosen ? (
+            <div className="chosen">
+              <span><b>{chosen}</b></span>
+              <button className="btn-link" onClick={() => { p.onFile(null); }}>Remove</button>
+            </div>
+          ) : (
+            <>
+              <div
+                className={`dropzone${dragOver ? " over" : ""}`}
+                role="button" tabIndex={0}
+                onClick={() => fileInput.current?.click()}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInput.current?.click(); }}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); pick(e.dataTransfer.files?.[0]); }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
+                  <path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <b>Drop your orders CSV here</b>
+                <span>or click to choose a file, up to 25 MB</span>
+              </div>
+              <div className="or">or</div>
+              <button className="btn btn-wide" onClick={p.onSample}>Use a sample store</button>
+            </>
+          )}
+          <input ref={fileInput} type="file" accept=".csv,text/csv" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />
 
-      <div ref={resultsRef} style={{ scrollMarginTop: 80 }}>
-        {result && <AnalysisResults result={result} />}
+          <div className="numbers">
+            <span>
+              Customer worth <b>${p.numbers.customerValue}</b>, <b>{p.numbers.churn}%</b> leave after a decline,
+              {" "}<b>${p.numbers.fee}</b> chargeback fee
+            </span>
+            <button className="btn-link" onClick={() => setPopup("numbers")}>Change</button>
+          </div>
+
+          <button className="btn btn-primary btn-wide" disabled={p.loading} onClick={p.onAnalyze}>
+            {p.loading ? <><span className="spinner" /> Analyzing</> : "Find my cutoff"}
+          </button>
+          {p.error && <div className="alert alert-error" role="alert">{p.error}</div>}
+
+          <p className="fine" style={{ margin: "14px 0 0", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <span>Your file is analyzed in memory and never stored.</span>
+            <button className="btn-link" onClick={() => setPopup("format")}>What should my file look like?</button>
+          </p>
+        </div>
       </div>
-    </>
+
+      <div className="how">
+        <div><b><i>1</i>Export your orders</b><span>A CSV with each order's amount and the risk score from your fraud tool, such as Stripe Radar or Signifyd.</span></div>
+        <div><b><i>2</i>Check your numbers</b><span>What a customer is worth to you, and how many leave after a wrong decline.</span></div>
+        <div><b><i>3</i>Get your cutoff</b><span>The cheapest cutoff, what it saves each month, and how well it holds up.</span></div>
+      </div>
+
+      {popup === "numbers" && (
+        <NumbersModal numbers={p.numbers} onSave={p.onNumbers} onClose={() => setPopup(null)} saveLabel="Save numbers" />
+      )}
+      {popup === "format" && (
+        <Modal title="What your file should look like" onClose={() => setPopup(null)}>
+          <div className="table-scroll">
+            <table className="compare">
+              <thead><tr><th>Column</th><th style={{ textAlign: "left" }}>What it is</th><th>Needed?</th></tr></thead>
+              <tbody>
+                <tr><td><b>amount</b></td><td style={{ textAlign: "left" }}>Order total in dollars</td><td>Required</td></tr>
+                <tr><td><b>risk_score</b></td><td style={{ textAlign: "left" }}>Score from your fraud tool, 0 to 1 or 0 to 100</td><td>Required</td></tr>
+                <tr><td><b>declined</b></td><td style={{ textAlign: "left" }}>yes or no: did your current rule decline it?</td><td>Recommended</td></tr>
+                <tr><td><b>chargeback</b></td><td style={{ textAlign: "left" }}>yes or no: did an approved order turn out to be fraud? Leave blank for declined orders.</td><td>Recommended</td></tr>
+                <tr><td><b>created_at</b></td><td style={{ textAlign: "left" }}>Order date, used for savings per month</td><td>Optional</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="note" style={{ margin: "14px 0 18px" }}>
+            Column names don't have to match exactly. Names like "Order Total" or "Risk Score" are recognized.
+          </p>
+          <div className="btn-row">
+            <a className="btn btn-primary" href={`${API_URL}/api/template.csv`}>Download the template</a>
+            <a className="btn" href={`${API_URL}/api/sample-orders.csv`}>Download the sample store file</a>
+          </div>
+        </Modal>
+      )}
+    </div>
   );
 }

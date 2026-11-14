@@ -228,6 +228,17 @@ def analyze(orders: pd.DataFrame,
         baseline_label = "declining nothing"
     current = _policy_cost(current_decline, p_fraud, amount, customer_cost, chargeback_fee)
 
+    # If today's declines look like a simple "score >= X" rule, report X so the
+    # result can say "move your cutoff from X to Y". Left as None when they don't.
+    current_cutoff = None
+    if current_threshold is not None and not orders["declined"].notna().any():
+        current_cutoff = float(current_threshold)
+    elif current_decline.any():
+        lowest = float(score[current_decline].min())
+        above = score >= lowest
+        if current_decline[above].mean() >= 0.95:
+            current_cutoff = round(lowest * scale, 2)
+
     curve = [{"threshold": round(float(t) * scale, 2), **_round_policy(run(t, customer_cost))} for t in GRID]
     best_point = min(curve, key=lambda c: c["cost"])
     best_t = best_point["threshold"] / scale
@@ -271,6 +282,7 @@ def analyze(orders: pd.DataFrame,
             "cost_per_wrongly_declined_customer": round(customer_cost, 2),
         },
         "baseline_label": baseline_label,
+        "current_cutoff": current_cutoff,
         "current": _round_policy(current),
         "recommended": {"threshold": best_point["threshold"], **_round_policy(best)},
         "savings": round(savings, 2),

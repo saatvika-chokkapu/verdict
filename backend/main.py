@@ -2,14 +2,19 @@ import os
 import time
 import joblib
 import pandas as pd
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from backend.cost_model import assign_segment, decide_transaction, VELOCITY_REVIEW_THRESHOLD
 
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="RiskFlow Decisioning API")
+# Error reporting is on only when a DSN is configured, so local runs and CI need nothing.
+if os.getenv("SENTRY_DSN"):
+    import sentry_sdk
+    sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"), traces_sample_rate=0.0, send_default_pii=False)
+
+app = FastAPI(title="Verdict API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -282,20 +287,57 @@ def _sensitivity_analysis_live():
 # ---------------------------------------------------------------------------
 # Merchant analyzer: "where should I set my fraud cutoff?"
 # ---------------------------------------------------------------------------
-from backend.analyzer import AnalysisError, analyze, load_orders  # noqa: E402
+import json  # noqa: E402
+from collections import defaultdict, deque  # noqa: E402
+
+from backend.analyzer import AnalysisError, ColumnsNotFound, analyze, load_orders  # noqa: E402
+from backend.column_mapper import suggest_mapping  # noqa: E402
+
+# Small in-memory rate limit: uploads are the only expensive endpoint, and the API
+# runs as a single process, so a per-IP sliding window is enough.
+RATE_LIMIT = int(os.getenv("ANALYZE_RATE_LIMIT", "12"))   # requests
+RATE_WINDOW = 60.0                                        # seconds
+_recent: dict[str, deque] = defaultdict(deque)
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _check_rate_limit(request: Request) -> None:
+    now = time.monotonic()
+    hits = _recent[_client_ip(request)]
+    while hits and now - hits[0] > RATE_WINDOW:
+        hits.popleft()
+    if len(hits) >= RATE_LIMIT:
+        raise HTTPException(429, "Too many analyses in a short time. Wait a minute and try again.")
+    hits.append(now)
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
 
 @app.post("/api/analyze")
 async def analyze_orders(
+    request: Request,
     file: UploadFile | None = File(None),
+    mapping: str | None = Form(None),
     use_sample: bool = Form(False),
     customer_value: float = Form(300.0),
     churn_rate: float = Form(0.39),
     chargeback_fee: float = Form(15.0),
     current_threshold: float | None = Form(None),
 ):
+    _check_rate_limit(request)
+    column_mapping = None
+    if mapping:
+        try:
+            column_mapping = {str(k): str(v) for k, v in json.loads(mapping).items() if v}
+        except (ValueError, AttributeError) as exc:
+            raise HTTPException(400, "The column mapping was not valid.") from exc
+
     if use_sample:
         with open(os.path.join(SAMPLE_DIR, "sample_orders.csv"), "rb") as f:
             raw = f.read()
@@ -307,10 +349,21 @@ async def analyze_orders(
         raise HTTPException(400, "Upload a CSV file or choose the sample data.")
 
     try:
-        orders, warnings = load_orders(raw)
+        orders, warnings = load_orders(raw, mapping=column_mapping)
         result = analyze(orders, customer_value=customer_value, churn_rate=churn_rate,
                          chargeback_fee=chargeback_fee, current_threshold=current_threshold,
                          warnings=warnings)
+    except ColumnsNotFound as exc:
+        # Not a dead end: tell the UI what columns exist so the merchant can match them.
+        suggestion = suggest_mapping(exc.columns)
+        return JSONResponse(status_code=422, content={
+            "detail": str(exc),
+            "needs_mapping": True,
+            "columns": exc.columns,
+            "matched": {k: v for k, v in exc.found.items() if v},
+            "suggestion": suggestion,
+            "suggested_by": "ai" if suggestion else None,
+        })
     except AnalysisError as exc:
         raise HTTPException(422, str(exc)) from exc
     result["source"] = "sample" if use_sample else "upload"

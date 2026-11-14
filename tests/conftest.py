@@ -3,3 +3,5 @@ import sys
 
 # Make `backend.*` importable when pytest runs from the repo root.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+os.environ.setdefault("ANALYZE_RATE_LIMIT", "100000")

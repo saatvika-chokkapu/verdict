@@ -53,6 +53,19 @@ class AnalysisError(ValueError):
     """Raised for problems the merchant can fix in their file."""
 
 
+class ColumnsNotFound(AnalysisError):
+    """The file was readable but we could not tell which columns are which.
+
+    Carries the file's column names so the UI can ask the merchant to match
+    them (optionally pre-filled by backend/column_mapper.py).
+    """
+
+    def __init__(self, message: str, columns: list[str], found: dict[str, str | None]):
+        super().__init__(message)
+        self.columns = columns
+        self.found = found
+
+
 def _norm(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", str(name).strip().lower()).strip("_")
 
@@ -83,8 +96,13 @@ def _to_bool(series: pd.Series) -> pd.Series:
     return series.map(conv).astype(float)
 
 
-def load_orders(raw: bytes) -> tuple[pd.DataFrame, list[str]]:
-    """Parse an uploaded CSV into a clean frame with amount, score, declined, fraud, date."""
+def load_orders(raw: bytes, mapping: dict[str, str] | None = None) -> tuple[pd.DataFrame, list[str]]:
+    """Parse an uploaded CSV into a clean frame with amount, score, declined, fraud, date.
+
+    `mapping` lets the merchant say which of their columns plays each role
+    (e.g. {"amount": "Grand Total", "score": "Fraud Rating"}); it overrides
+    the automatic name matching.
+    """
     warnings: list[str] = []
     try:
         df = pd.read_csv(io.BytesIO(raw))
@@ -98,13 +116,17 @@ def load_orders(raw: bytes) -> tuple[pd.DataFrame, list[str]]:
 
     columns = {_norm(c): c for c in df.columns}
     found = {role: _find_column(columns, role) for role in COLUMN_ALIASES}
+    for role, col in (mapping or {}).items():
+        if role in COLUMN_ALIASES and col in df.columns:
+            found[role] = col
 
     missing = [role for role in ("amount", "score") if found[role] is None]
     if missing:
         names = {"amount": "order amount", "score": "risk score"}
-        raise AnalysisError(
+        raise ColumnsNotFound(
             "Missing required column(s): " + ", ".join(names[m] for m in missing)
-            + ". Expected something like 'amount' and 'risk_score'. Download the template to see the format."
+            + ". Expected something like 'amount' and 'risk_score'. Download the template to see the format.",
+            columns=[str(c) for c in df.columns], found=found,
         )
 
     out = pd.DataFrame({
@@ -183,6 +205,64 @@ def _fraud_estimate(score: np.ndarray, fraud: np.ndarray, labeled: np.ndarray) -
     return score.copy(), "raw_score"
 
 
+MIN_FRAUD_PER_BAND = 15.0   # expected fraud cases needed before a band gets its own cutoff
+MIN_ORDERS_PER_BAND = 300
+
+
+def _nice(x: float) -> float:
+    """Round a dollar boundary to something a person would say out loud."""
+    step = 5 if x < 100 else 25 if x < 500 else 100
+    return float(max(step, round(x / step) * step))
+
+
+def _size_bands(amount, score, p_fraud, customer_cost, fee, scale, overall_threshold, overall_cost):
+    """
+    Find a separate cutoff for small, medium and large orders.
+
+    A $400 order and a $25 order with the same risk score are not the same bet:
+    the fraud loss scales with the amount while the cost of losing the customer
+    does not. Each band only gets its own cutoff when it has enough orders and
+    enough (expected) fraud to choose one reliably; otherwise it keeps the
+    overall cutoff, and the response says so.
+    """
+    if len(amount) < 3 * MIN_ORDERS_PER_BAND:
+        return None
+    lo, hi = _nice(np.quantile(amount, 1 / 3)), _nice(np.quantile(amount, 2 / 3))
+    if not lo < hi:
+        return None
+    edges = [(0.0, lo, f"Under ${lo:,.0f}"), (lo, hi, f"${lo:,.0f} to ${hi:,.0f}"), (hi, np.inf, f"${hi:,.0f} and up")]
+
+    bands, total = [], 0.0
+    for low, high, label in edges:
+        mask = (amount >= low) & (amount < high)
+        n = int(mask.sum())
+        if n == 0:
+            return None
+        a, sc, pf = amount[mask], score[mask], p_fraud[mask]
+        at_overall = _policy_cost(sc >= overall_threshold, pf, a, customer_cost, fee)
+        own = n >= MIN_ORDERS_PER_BAND and pf.sum() >= MIN_FRAUD_PER_BAND
+        best_t, best = overall_threshold, at_overall
+        if own:
+            for t in GRID:
+                c = _policy_cost(sc >= t, pf, a, customer_cost, fee)
+                if c["cost"] < best["cost"] - 1e-9:
+                    best_t, best = float(t), c
+        total += best["cost"]
+        bands.append({
+            "label": label, "orders": n,
+            "threshold": round(best_t * scale, 2),
+            "own_cutoff": bool(own),
+            "cost": round(best["cost"], 2),
+            "cost_at_overall_cutoff": round(at_overall["cost"], 2),
+            "declined": best["declined"],
+        })
+    return {
+        "bands": bands,
+        "cost": round(total, 2),
+        "extra_savings": round(overall_cost - total, 2),
+    }
+
+
 def _round_policy(d: dict) -> dict:
     return {k: (round(v, 2) if isinstance(v, float) else v) for k, v in d.items()}
 
@@ -245,6 +325,7 @@ def analyze(orders: pd.DataFrame,
     best = run(best_t, customer_cost)
 
     savings = current["cost"] - best["cost"]
+    by_size = _size_bands(amount, score, p_fraud, customer_cost, chargeback_fee, scale, best_t, best["cost"])
 
     sensitivity = []
     for m in SENSITIVITY_MULTIPLIERS:
@@ -290,6 +371,7 @@ def analyze(orders: pd.DataFrame,
         "period_days": period_days,
         "monthly_savings": monthly_savings,
         "curve": curve,
+        "by_order_size": by_size,
         "sensitivity": sensitivity,
         "warnings": warnings,
     }

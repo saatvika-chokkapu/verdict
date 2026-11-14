@@ -38,10 +38,27 @@ export type AnalyzeInputs = {
   churnRate: number;
   chargebackFee: number;
   currentThreshold?: number | null;
+  mapping?: Record<string, string> | null;
 };
 
+// Thrown when the file is readable but its columns could not be identified.
+// The UI uses it to ask the person to match their columns.
+export class NeedsMapping extends Error {
+  columns: string[];
+  matched: Record<string, string>;
+  suggestion: Record<string, string> | null;
+  suggestedBy: string | null;
+  constructor(body: any) {
+    super(body.detail);
+    this.columns = body.columns;
+    this.matched = body.matched || {};
+    this.suggestion = body.suggestion || null;
+    this.suggestedBy = body.suggested_by || null;
+  }
+}
+
 // Analysis can arrive while the API is cold, so allow a longer timeout and one retry
-// for network failures (but never retry a 4xx: that is a problem with the file).
+// for network failures (but never retry a 4xx: that is a problem with the request).
 export async function analyzeOrders(inputs: AnalyzeInputs) {
   const form = new FormData();
   if (inputs.useSample) form.append("use_sample", "true");
@@ -50,6 +67,7 @@ export async function analyzeOrders(inputs: AnalyzeInputs) {
   form.append("churn_rate", String(inputs.churnRate));
   form.append("chargeback_fee", String(inputs.chargebackFee));
   if (inputs.currentThreshold != null) form.append("current_threshold", String(inputs.currentThreshold));
+  if (inputs.mapping) form.append("mapping", JSON.stringify(inputs.mapping));
 
   for (let attempt = 0; ; attempt++) {
     try {
@@ -57,6 +75,7 @@ export async function analyzeOrders(inputs: AnalyzeInputs) {
       return res.data;
     } catch (err: any) {
       const status = err?.response?.status;
+      if (status === 422 && err.response.data?.needs_mapping) throw new NeedsMapping(err.response.data);
       if (status && status < 500) {
         throw new Error(err.response.data?.detail || "The file could not be analyzed.");
       }

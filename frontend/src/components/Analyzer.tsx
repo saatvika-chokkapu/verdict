@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { API_URL } from "../api/client";
+import { API_URL, NeedsMapping } from "../api/client";
 import Modal from "./Modal";
 
 export type Numbers = { customerValue: string; churn: string; fee: string; currentCutoff: string };
@@ -10,6 +10,7 @@ type Props = {
   numbers: Numbers;
   loading: boolean;
   error: string | null;
+  compact?: boolean;
   onFile: (f: File | null) => void;
   onSample: () => void;
   onNumbers: (n: Numbers) => void;
@@ -55,6 +56,45 @@ export function NumbersModal({ numbers, onSave, onClose, saveLabel }: {
   );
 }
 
+const ROLE_LABELS: [string, string, boolean][] = [
+  ["amount", "Order amount", true],
+  ["score", "Risk score", true],
+  ["declined", "Was it declined?", false],
+  ["fraud", "Did it turn out to be fraud?", false],
+  ["date", "Order date", false],
+];
+
+/** Shown when the file's column names weren't recognized. */
+export function MappingModal({ info, onConfirm, onClose }: {
+  info: NeedsMapping; onConfirm: (mapping: Record<string, string>) => void; onClose: () => void;
+}) {
+  const [mapping, setMapping] = useState<Record<string, string>>({ ...(info.suggestion || {}), ...info.matched });
+  const ready = mapping.amount && mapping.score;
+  return (
+    <Modal title="Match your columns" onClose={onClose}>
+      <p className="note" style={{ marginBottom: 16 }}>
+        We couldn't tell which of your columns is which. Pick the right one for each row.
+        {info.suggestedBy === "ai" && " The choices below were suggested by AI from your column names only. No order data was shared."}
+      </p>
+      {ROLE_LABELS.map(([role, label, required]) => (
+        <div className="field" key={role} style={{ marginBottom: 12 }}>
+          <label>{label}{required ? "" : " (optional)"}</label>
+          <div className="input-wrap">
+            <select value={mapping[role] || ""} onChange={(e) => setMapping({ ...mapping, [role]: e.target.value })}>
+              <option value="">{required ? "Choose a column" : "Not in my file"}</option>
+              {info.columns.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+      ))}
+      <button className="btn btn-primary btn-wide" style={{ marginTop: 8 }} disabled={!ready}
+              onClick={() => { onConfirm(Object.fromEntries(Object.entries(mapping).filter(([, v]) => v))); onClose(); }}>
+        Use these columns
+      </button>
+    </Modal>
+  );
+}
+
 export default function Analyzer(p: Props) {
   const [dragOver, setDragOver] = useState(false);
   const [popup, setPopup] = useState<null | "numbers" | "format">(null);
@@ -68,70 +108,53 @@ export default function Analyzer(p: Props) {
   const chosen = p.file ? p.file.name : p.useSample ? "Sample store, 25,000 orders" : null;
 
   return (
-    <div className="view">
-      <div className="start">
-        <div>
-          <h1 className="display">Your fraud filter may be costing you more than fraud.</h1>
-          <p className="lead">
-            Every declined order is either fraud you stopped or a good customer you turned away.
-            Verdict reads your own orders and finds the risk-score cutoff that costs you the least.
-          </p>
+    <div>
+      {chosen ? (
+        <div className="chosen">
+          <b>{chosen}</b>
+          <button className="btn-link" onClick={() => p.onFile(null)}>Remove</button>
         </div>
-
-        <div className="upload-card">
-          {chosen ? (
-            <div className="chosen">
-              <span><b>{chosen}</b></span>
-              <button className="btn-link" onClick={() => { p.onFile(null); }}>Remove</button>
-            </div>
-          ) : (
-            <>
-              <div
-                className={`dropzone${dragOver ? " over" : ""}`}
-                role="button" tabIndex={0}
-                onClick={() => fileInput.current?.click()}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInput.current?.click(); }}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => { e.preventDefault(); setDragOver(false); pick(e.dataTransfer.files?.[0]); }}
-              >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
-                  <path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <b>Drop your orders CSV here</b>
-                <span>or click to choose a file, up to 25 MB</span>
-              </div>
-              <div className="or">or</div>
-              <button className="btn btn-wide" onClick={p.onSample}>Use a sample store</button>
-            </>
-          )}
-          <input ref={fileInput} type="file" accept=".csv,text/csv" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />
-
-          <div className="numbers">
-            <span>
-              Customer worth <b>${p.numbers.customerValue}</b>, <b>{p.numbers.churn}%</b> leave after a decline,
-              {" "}<b>${p.numbers.fee}</b> chargeback fee
-            </span>
-            <button className="btn-link" onClick={() => setPopup("numbers")}>Change</button>
+      ) : (
+        <>
+          <div
+            className={`dropzone${dragOver ? " over" : ""}`}
+            role="button" tabIndex={0}
+            style={p.compact ? { padding: "18px 14px" } : undefined}
+            onClick={() => fileInput.current?.click()}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInput.current?.click(); }}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); pick(e.dataTransfer.files?.[0]); }}
+          >
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
+              <path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <b>Drop your orders CSV here</b>
+            <span>or click to choose a file, up to 25 MB</span>
           </div>
+          <div className="or">or</div>
+          <button className="btn btn-wide" disabled={p.loading} onClick={p.onSample}>Use a sample store</button>
+        </>
+      )}
+      <input ref={fileInput} type="file" accept=".csv,text/csv" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />
 
-          <button className="btn btn-primary btn-wide" disabled={p.loading} onClick={p.onAnalyze}>
-            {p.loading ? <><span className="spinner" /> Analyzing</> : "Find my cutoff"}
-          </button>
-          {p.error && <div className="alert alert-error" role="alert">{p.error}</div>}
-
-          <p className="fine" style={{ margin: "14px 0 0", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <span>Your file is analyzed in memory and never stored.</span>
-            <button className="btn-link" onClick={() => setPopup("format")}>What should my file look like?</button>
-          </p>
-        </div>
+      <div className="numbers">
+        <span>
+          Customer worth <b>${p.numbers.customerValue}</b>, <b>{p.numbers.churn}%</b> leave after a decline,
+          {" "}<b>${p.numbers.fee}</b> chargeback fee
+        </span>
+        <button className="btn-link" onClick={() => setPopup("numbers")}>Change</button>
       </div>
 
-      <div className="how">
-        <div><b><i>1</i>Export your orders</b><span>A CSV with each order's amount and the risk score from your fraud tool, such as Stripe Radar or Signifyd.</span></div>
-        <div><b><i>2</i>Check your numbers</b><span>What a customer is worth to you, and how many leave after a wrong decline.</span></div>
-        <div><b><i>3</i>Get your cutoff</b><span>The cheapest cutoff, what it saves each month, and how well it holds up.</span></div>
-      </div>
+      <button className="btn btn-primary btn-wide" disabled={p.loading} onClick={p.onAnalyze}>
+        {p.loading ? <><span className="spinner" /> Analyzing</> : p.compact && chosen ? "Run again" : "Find my cutoff"}
+      </button>
+      {p.error && <div className="alert" role="alert">{p.error}</div>}
+
+      <p className="fine" style={{ margin: "14px 0 0" }}>
+        Your file is analyzed in memory and never stored.{" "}
+        <button className="btn-link" style={{ fontSize: 12.5 }} onClick={() => setPopup("format")}>What should my file look like?</button>
+      </p>
 
       {popup === "numbers" && (
         <NumbersModal numbers={p.numbers} onSave={p.onNumbers} onClose={() => setPopup(null)} saveLabel="Save numbers" />
@@ -151,7 +174,7 @@ export default function Analyzer(p: Props) {
             </table>
           </div>
           <p className="note" style={{ margin: "14px 0 18px" }}>
-            Column names don't have to match exactly. Names like "Order Total" or "Risk Score" are recognized.
+            Your column names don't have to match. If we can't recognize them, you'll be asked to match them yourself.
           </p>
           <div className="btn-row">
             <a className="btn btn-primary" href={`${API_URL}/api/template.csv`}>Download the template</a>

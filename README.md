@@ -81,9 +81,9 @@ cd riskflow_dbt && dbt test          # needs a Snowflake connection
 
 The analyzer tests check that a recommended cutoff never costs more than any cutoff on the curve, that the backtest choice is unaffected by tampering with the later orders, that it never beats the hindsight optimum, and that a column-matching suggestion can only point at columns that exist.
 
-## What I learned
+## What I leart
 
-- **A good-looking number can be in-sample.** My first version measured savings on the same orders it chose the cutoff from. Adding an out-of-time check made the result smaller in some cases but believable in all of them.
+- **A good-looking number can be in sample.** My first version measured savings on the same orders it chose the cutoff from. Adding an out of time check made the result smaller in some cases but believable in all of them.
 - **Missing labels are not random.** Declined orders never get a fraud outcome, and filling that gap with the raw score overstated fraud badly. Calibrating on the labeled orders fixed it.
 - **Free tiers expire.** The Snowflake trial ended and every data endpoint started failing. I moved the site to snapshots of the marts with an environment flag for live mode, and pinned the Python version after a deploy broke on a newer runtime.
 - **The use case has to be obvious.** The first version was a report about one dataset. Turning it into a tool that runs on a visitor's own orders made it something a business could actually use.
